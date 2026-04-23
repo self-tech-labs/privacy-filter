@@ -6,6 +6,19 @@
 - The public landing page is built from `site/` and deployed through GitHub Pages.
 - The desktop app frontend is built from `src/`.
 
+## GitHub release assets
+
+- GitHub automatically adds `Source code (zip)` and `Source code (tar.gz)` to
+  every tagged release.
+- Those archives are snapshots of the repository source, not installable macOS
+  application builds.
+- A real public macOS release for this project should include:
+  - a `.dmg` installer
+  - the `.app.tar.gz` updater archive
+  - the matching `.app.tar.gz.sig` signature
+  - `latest.json` for updater metadata
+- Do not publish unsigned or unstapled macOS artifacts as the public download.
+
 ## Local verification
 
 Run the full validation suite before cutting a release:
@@ -24,6 +37,25 @@ npm run check
   - Builds the downloadable DMG only
 - `npm run release:mac:all`
   - Produces both updater and DMG artifacts
+
+## GitHub Actions release workflow
+
+This repository includes [release-macos.yml](../.github/workflows/release-macos.yml)
+for tagged or manual macOS releases.
+
+It expects these GitHub Actions secrets:
+
+- `TAURI_SIGNING_PRIVATE_KEY`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` if your updater key is password-protected
+- `APPLE_CERTIFICATE` as base64-encoded `.p12`
+- `APPLE_CERTIFICATE_PASSWORD`
+- `APPLE_API_KEY`
+- `APPLE_API_ISSUER`
+- `APPLE_API_PRIVATE_KEY` with the App Store Connect `.p8` contents
+- `APPLE_SIGNING_IDENTITY` optionally, if you do not want the workflow to infer it
+
+Without those secrets, the workflow should fail fast instead of publishing a
+misleading release that only contains GitHub's default source archives.
 
 ## Updater key
 

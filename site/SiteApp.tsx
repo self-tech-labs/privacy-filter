@@ -39,7 +39,7 @@ export function SiteApp() {
               View on GitHub
             </a>
             <a className="site-btn" href={PRODUCT_RELEASES_URL}>
-              Download macOS release
+              View macOS releases
             </a>
             <a className="site-btn" href={PRODUCT_PRIVACY_DOC_URL}>
               Read privacy docs
@@ -47,6 +47,11 @@ export function SiteApp() {
           </div>
 
           <p className="site-inline-note">{LEGAL_DISCLAIMER_SHORT}</p>
+          <p className="site-inline-note">
+            Installable macOS builds appear as `.dmg` assets on tagged releases.
+            GitHub&apos;s `.zip` and `.tar.gz` downloads are source archives, not
+            the desktop app.
+          </p>
         </div>
 
         <div className="site-preview" aria-label="Product preview">

@@ -54,6 +54,11 @@ This is open-source software released under the [MIT License](LICENSE). Use it a
 
 The easiest way to try the app is from the [GitHub Releases page](https://github.com/self-tech-labs/privacy-filter/releases).
 
+GitHub always shows `Source code (zip)` and `Source code (tar.gz)` for tagged
+releases. Those are repository archives, not installable desktop builds. The
+actual macOS app download for this project is the `.dmg` file listed under the
+release assets when a signed release has been published.
+
 For the initial open-source release, some technical bundle identifiers and artifact names still use the existing `ogram private` naming under the hood. The user-facing app copy is `Privacy Filter by ogram`.
 
 ## Local development
@@ -90,6 +95,10 @@ npm run release:mac:app
 npm run release:mac:dmg
 npm run release:mac:all
 ```
+
+For a public GitHub release, publish the generated `.dmg`,
+`.app.tar.gz`, `.app.tar.gz.sig`, and `latest.json` assets. GitHub's automatic
+source archives are not sufficient for app distribution.
 
 ## Contributing
 
