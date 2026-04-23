@@ -1,6 +1,7 @@
 export const PRODUCT_NAME = 'Privacy Filter'
 export const BRAND_NAME = 'ogram'
 export const PRODUCT_PUBLIC_NAME = `${PRODUCT_NAME} by ${BRAND_NAME}`
+export const BRAND_SITE_URL = 'https://ogram.ch/'
 
 export const PRODUCT_REPOSITORY_URL =
   'https://github.com/self-tech-labs/privacy-filter'

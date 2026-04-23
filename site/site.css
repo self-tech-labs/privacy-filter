@@ -78,6 +78,14 @@ a {
   letter-spacing: -0.05em;
 }
 
+.site-brand--link {
+  width: fit-content;
+}
+
+.site-brand--link:hover {
+  color: var(--site-accent);
+}
+
 .site-title,
 .site-section h2 {
   margin: 0;

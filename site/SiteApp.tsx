@@ -1,4 +1,6 @@
 import {
+  BRAND_NAME,
+  BRAND_SITE_URL,
   LANDING_AUDIENCES,
   LANDING_LIMITS,
   LANDING_STEPS,
@@ -28,7 +30,9 @@ export function SiteApp() {
           <div className="site-eyebrow">
             Open-source local redaction for Swiss privacy-sensitive teams
           </div>
-          <div className="site-brand">ogram</div>
+          <a className="site-brand site-brand--link" href={BRAND_SITE_URL}>
+            {BRAND_NAME}
+          </a>
           <h1 className="site-title">{PRODUCT_PUBLIC_NAME}</h1>
           <p className="site-lead">
             {PRODUCT_NAME} helps law firms, medical practices, and other
@@ -53,6 +57,12 @@ export function SiteApp() {
             Installable macOS builds appear as `.dmg` assets on tagged releases.
             GitHub&apos;s `.zip` and `.tar.gz` downloads are source archives, not
             the desktop app.
+          </p>
+          <p className="site-inline-note">
+            Main project:{' '}
+            <a className="site-inline-link" href={BRAND_SITE_URL}>
+              ogram.ch
+            </a>
           </p>
         </div>
 
@@ -192,10 +202,16 @@ export function SiteApp() {
 
       <footer className="site-footer">
         <div>
-          <div className="site-brand site-brand--footer">ogram</div>
+          <a
+            className="site-brand site-brand--footer site-brand--link"
+            href={BRAND_SITE_URL}
+          >
+            {BRAND_NAME}
+          </a>
           <p>{PRODUCT_PUBLIC_NAME}</p>
         </div>
         <div className="site-footer__links">
+          <a href={BRAND_SITE_URL}>ogram.ch</a>
           <a href={PRODUCT_REPOSITORY_URL}>GitHub</a>
           <a href={PRODUCT_RELEASES_URL}>Releases</a>
           <a href={PRODUCT_PRIVACY_DOC_URL}>Privacy docs</a>
