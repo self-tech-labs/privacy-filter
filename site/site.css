@@ -93,6 +93,7 @@ a {
 
 .site-lead,
 .site-legal-copy,
+.site-section__copy,
 .site-list-block p,
 .site-card p,
 .site-step p,
@@ -217,6 +218,10 @@ a {
   margin-bottom: 24px;
 }
 
+.site-section__copy {
+  max-width: 40rem;
+}
+
 .site-grid {
   display: grid;
   gap: 14px;
@@ -233,6 +238,29 @@ a {
   border: 1px solid var(--site-line);
   background: var(--site-paper-strong);
   padding: 20px;
+}
+
+.site-demo-card {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.site-demo-video {
+  display: block;
+  width: 100%;
+  border: 1px solid rgba(31, 76, 59, 0.12);
+  background:
+    radial-gradient(circle at top left, rgba(31, 76, 59, 0.18), transparent 30%),
+    #101515;
+  box-shadow: 0 24px 48px rgba(23, 27, 31, 0.12);
+}
+
+.site-demo-note {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--site-muted);
 }
 
 .site-step {

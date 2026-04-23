@@ -17,6 +17,8 @@ import {
   PRODUCT_REPOSITORY_URL,
   PRODUCT_SECURITY_DOC_URL,
 } from '../src/content/projectContent'
+import demoPosterUrl from './assets/privacy-filter-demo-poster.jpg'
+import demoVideoUrl from './assets/privacy-filter-demo.mp4'
 
 export function SiteApp() {
   return (
@@ -109,6 +111,34 @@ export function SiteApp() {
               <p>{step.body}</p>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className="site-section site-section--split site-section--demo">
+        <div className="site-section__heading">
+          <div className="site-eyebrow">Product demo</div>
+          <h2>Watch the desktop flow in a short privacy-filter walkthrough.</h2>
+          <p className="site-section__copy">
+            This clip shows the paste-only workflow: raw text enters the Mac app,
+            obvious private entities are replaced locally, and only the cleaned
+            draft moves downstream.
+          </p>
+        </div>
+        <div className="site-demo-card">
+          <video
+            className="site-demo-video"
+            controls
+            playsInline
+            preload="metadata"
+            poster={demoPosterUrl}
+          >
+            <source src={demoVideoUrl} type="video/mp4" />
+            Your browser does not support embedded video.
+          </video>
+          <p className="site-demo-note">
+            30-second product demo. Local redaction runs before the user copies
+            text into a frontier-model workflow.
+          </p>
         </div>
       </section>
 
