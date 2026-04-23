@@ -4,6 +4,10 @@ import {
   LANDING_STEPS,
   LEGAL_DISCLAIMER_LONG,
   LEGAL_DISCLAIMER_SHORT,
+  MODEL_REFERENCE_LABEL,
+  MODEL_REFERENCE_URL,
+  MODEL_USAGE_DETAIL,
+  MODEL_USAGE_SUMMARY,
   PRODUCT_LICENSE_URL,
   PRODUCT_NAME,
   PRODUCT_PAGES_URL,
@@ -100,6 +104,23 @@ export function SiteApp() {
               <p>{step.body}</p>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className="site-section site-section--split">
+        <div className="site-section__heading">
+          <div className="site-eyebrow">Model reference</div>
+          <h2>Built on OpenAI’s {MODEL_REFERENCE_LABEL} privacy model.</h2>
+        </div>
+        <div className="site-list-block">
+          <p>{MODEL_USAGE_SUMMARY}</p>
+          <p>{MODEL_USAGE_DETAIL}</p>
+          <p>
+            Model source:{' '}
+            <a className="site-inline-link" href={MODEL_REFERENCE_URL}>
+              {MODEL_REFERENCE_URL}
+            </a>
+          </p>
         </div>
       </section>
 

@@ -31,6 +31,12 @@ It is built for v1 simplicity, not kitchen-sink document management.
 - Keeps the interface paste-only so the workflow stays predictable and easy to audit.
 - Ships as a Tauri desktop app for macOS.
 
+## Model reference
+
+This project uses OpenAI's [`openai/privacy-filter`](https://huggingface.co/openai/privacy-filter) model from Hugging Face as its local privacy-detection engine.
+
+According to the Hugging Face model page, `openai/privacy-filter` is a token-classification model for PII detection and masking. In this project, we load that model through `@huggingface/transformers`, run it locally after the first model download, detect spans such as names, emails, phone numbers, dates, addresses, URLs, account numbers, and secrets, then replace those spans with typed placeholders before the user copies the cleaned text into ChatGPT or another downstream model workflow.
+
 ## Privacy model
 
 - The privacy pass itself runs on-device after the initial model download.

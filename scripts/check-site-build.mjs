@@ -42,7 +42,7 @@ for (const file of files) {
 
   const content = readFileSync(file, 'utf8')
 
-  if (/openai\/privacy-filter|ort-wasm|onnxruntime/i.test(content)) {
+  if (/ort-wasm|onnxruntime/i.test(content)) {
     throw new Error(`Unexpected model reference in site build output: ${file}`)
   }
 }

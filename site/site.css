@@ -129,6 +129,12 @@ a {
   border-color: rgba(23, 27, 31, 0.24);
 }
 
+.site-inline-link {
+  color: var(--site-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
 .site-btn--primary {
   border-color: rgba(31, 76, 59, 0.16);
   background: var(--site-accent);
