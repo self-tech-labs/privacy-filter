@@ -29,6 +29,14 @@ const macBundleDir = join(
   'bundle',
   'macos',
 )
+const dmgBundleDir = join(
+  projectRoot,
+  'src-tauri',
+  'target',
+  'release',
+  'bundle',
+  'dmg',
+)
 const updaterOutputDir = join(
   projectRoot,
   'src-tauri',
@@ -103,6 +111,53 @@ function notarizationMode() {
   if (hasApiAuth) return 'app-store-connect'
   if (hasAppleIdAuth) return 'apple-id'
   return 'local-only'
+}
+
+function resolveAppleApiKeyPath() {
+  const keyPath = process.env.APPLE_API_KEY_PATH?.trim()
+
+  if (keyPath) {
+    return keyPath
+  }
+
+  const keyDirectory = process.env.API_PRIVATE_KEYS_DIR?.trim()
+  const keyId = process.env.APPLE_API_KEY?.trim()
+
+  if (keyDirectory && keyId) {
+    return join(keyDirectory, `AuthKey_${keyId}.p8`)
+  }
+
+  throw new Error(
+    'Missing App Store Connect private key path. Set APPLE_API_KEY_PATH or API_PRIVATE_KEYS_DIR.',
+  )
+}
+
+function notarizationArgs() {
+  const mode = notarizationMode()
+
+  if (mode === 'app-store-connect') {
+    return [
+      '--key',
+      resolveAppleApiKeyPath(),
+      '--key-id',
+      process.env.APPLE_API_KEY,
+      '--issuer',
+      process.env.APPLE_API_ISSUER,
+    ]
+  }
+
+  if (mode === 'apple-id') {
+    return [
+      '--apple-id',
+      process.env.APPLE_ID,
+      '--password',
+      process.env.APPLE_PASSWORD,
+      '--team-id',
+      process.env.APPLE_TEAM_ID,
+    ]
+  }
+
+  throw new Error('Missing notarization credentials.')
 }
 
 function printReleaseContext() {
@@ -256,6 +311,24 @@ function buildDmgBundle() {
   })
 
   run('npx', ['tauri', 'build', '--bundles', 'dmg', '--config', configOverride])
+  notarizeAndStapleDmg()
+}
+
+function notarizeAndStapleDmg() {
+  const notarization = notarizationMode()
+  const dmgPath = latestFileBySuffix(dmgBundleDir, '.dmg')
+
+  if (notarization === 'local-only') {
+    console.warn(
+      `Skipping DMG notarization because no notarization credentials were detected: ${dmgPath}`,
+    )
+    return
+  }
+
+  console.log(`Notarizing DMG ${dmgPath}`)
+  run('xcrun', ['notarytool', 'submit', dmgPath, ...notarizationArgs(), '--wait'])
+  run('xcrun', ['stapler', 'staple', dmgPath])
+  run('xcrun', ['stapler', 'validate', dmgPath])
 }
 
 function main() {

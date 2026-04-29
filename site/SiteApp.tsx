@@ -33,7 +33,7 @@ export function SiteApp() {
           <a className="site-brand site-brand--link" href={BRAND_SITE_URL}>
             {BRAND_NAME}
           </a>
-          <h1 className="site-title">{PRODUCT_PUBLIC_NAME}</h1>
+          <h1 className="site-title">{PRODUCT_NAME}</h1>
           <p className="site-lead">
             {PRODUCT_NAME} helps law firms, medical practices, and other
             confidentiality-sensitive specialists clean working drafts locally

@@ -35,8 +35,10 @@ npm run check
   - Writes `src-tauri/target/release/bundle/updater/latest.json`
 - `npm run release:mac:dmg`
   - Builds the downloadable DMG only
+  - Notarizes and staples the DMG when Apple notarization credentials are set
 - `npm run release:mac:all`
   - Produces both updater and DMG artifacts
+  - Notarizes and staples the final DMG when Apple notarization credentials are set
 
 ## GitHub Actions release workflow
 
