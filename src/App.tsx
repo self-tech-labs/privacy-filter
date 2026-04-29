@@ -8,7 +8,6 @@ import {
 } from 'react'
 
 import {
-  APP_DESCRIPTION,
   APP_LOCAL_PROCESSING_NOTE,
   APP_SHORT_TAGLINE,
   BRAND_NAME,
@@ -126,29 +125,13 @@ function App() {
     <main className="app-shell">
       <div className="app-frame">
         <header className="app-header">
-          <div className="header-copy">
-            <div className="app-kicker-row">
-              <span className="app-kicker">Open source</span>
-              <span className="app-kicker">Swiss privacy workflows</span>
-            </div>
-
-            <div className="brand-lockup">
-              <div className="wordmark text-[2.35rem] leading-none text-[color:var(--fg)]">
-                {BRAND_NAME}
-              </div>
-              <div className="app-tag">{PRODUCT_NAME}</div>
-            </div>
-
-            <div className="space-y-3">
-              <h1 className="serif-display text-[clamp(2.2rem,4.2vw,3.6rem)] leading-[0.92] text-[color:var(--fg)]">
-                {PRODUCT_PUBLIC_NAME}
-              </h1>
-              <p className="max-w-2xl text-base leading-7 text-[color:var(--fg-muted)]">
-                {APP_SHORT_TAGLINE}
-              </p>
-              <p className="max-w-2xl text-sm leading-6 text-[color:var(--fg-dim)]">
-                {APP_DESCRIPTION}
-              </p>
+          <div className="brand-cluster">
+            <div className="wordmark">{BRAND_NAME}</div>
+            <div className="brand-rule" aria-hidden="true" />
+            <div className="brand-copy">
+              <p className="product-label">{PRODUCT_NAME}</p>
+              <h1>{PRODUCT_PUBLIC_NAME}</h1>
+              <p>{APP_SHORT_TAGLINE}</p>
             </div>
           </div>
 
@@ -157,6 +140,8 @@ function App() {
             <div
               className="status-chip"
               data-state={busy ? 'busy' : modelStatus.phase}
+              role="status"
+              aria-live="polite"
             >
               <span className="status-chip__dot" />
               <span>{modelStatus.detail}</span>
@@ -164,22 +149,26 @@ function App() {
           </div>
         </header>
 
+        <section className="context-strip" aria-label="Workflow context">
+          <span>Open source</span>
+          <span>Swiss privacy workflows</span>
+          <span>{APP_LOCAL_PROCESSING_NOTE}</span>
+        </section>
+
         {error ? <NoticeBar tone="error" text={error} /> : null}
         {!error && notice ? <NoticeBar tone="neutral" text={notice} /> : null}
 
-        <section className="workspace-grid">
-          <section className="surface-card">
-            <div className="surface-head">
-              <div>
-                <div className="surface-eyebrow">Source text</div>
-                <h2 className="serif-display text-[clamp(2rem,4vw,3.1rem)] leading-[0.92] text-[color:var(--fg)]">
-                  Paste or write.
-                </h2>
+        <section className="workspace-grid" aria-label="Privacy filter workspace">
+          <section className="work-pane" aria-labelledby="source-pane-title">
+            <div className="pane-header">
+              <div className="pane-heading">
+                <p className="surface-eyebrow">Source text</p>
+                <h2 id="source-pane-title">Working draft</h2>
               </div>
               <MetricStrip words={sourceMetrics.words} chars={sourceMetrics.chars} />
             </div>
 
-            <div className="surface-body">
+            <div className="editor-shell">
               <textarea
                 aria-label="Source text"
                 value={sourceText}
@@ -191,17 +180,10 @@ function App() {
               />
             </div>
 
-            <div className="surface-footer">
-              <div className="info-row">
-                <div className="flex items-center gap-3 text-sm text-[color:var(--fg-muted)]">
-                  <Shield
-                    size={15}
-                    strokeWidth={1.4}
-                    className="text-[color:var(--accent)]"
-                  />
-                  <span>{APP_LOCAL_PROCESSING_NOTE}</span>
-                </div>
-                <span className="shortcut-hint">Cmd/Ctrl + Enter to run</span>
+            <div className="pane-footer">
+              <div className="local-note">
+                <Shield size={15} strokeWidth={1.4} aria-hidden="true" />
+                <span>{APP_LOCAL_PROCESSING_NOTE}</span>
               </div>
 
               <div className="action-row">
@@ -212,8 +194,8 @@ function App() {
                     onClick={handleReset}
                     disabled={busy}
                   >
-                    <Trash2 size={16} strokeWidth={1.4} />
-                    Clear
+                    <Trash2 size={16} strokeWidth={1.4} aria-hidden="true" />
+                    <span>Clear</span>
                   </button>
                 ) : null}
 
@@ -223,20 +205,18 @@ function App() {
                   onClick={handleMakePrivate}
                   disabled={!hasSource || busy}
                 >
-                  <Sparkles size={16} strokeWidth={1.4} />
-                  {busy ? 'Making private' : 'Make private'}
+                  <Sparkles size={16} strokeWidth={1.4} aria-hidden="true" />
+                  <span>{busy ? 'Making private' : 'Make private'}</span>
                 </button>
               </div>
             </div>
           </section>
 
-          <section className="surface-card">
-            <div className="surface-head">
-              <div>
-                <div className="surface-eyebrow">Private text</div>
-                <h2 className="serif-display text-[clamp(1.8rem,3.3vw,2.7rem)] leading-[0.94] text-[color:var(--fg)]">
-                  Ready to paste.
-                </h2>
+          <section className="work-pane" aria-labelledby="private-pane-title">
+            <div className="pane-header">
+              <div className="pane-heading">
+                <p className="surface-eyebrow">Private text</p>
+                <h2 id="private-pane-title">Clean draft</h2>
               </div>
               {result ? (
                 <MetricStrip
@@ -246,7 +226,7 @@ function App() {
               ) : null}
             </div>
 
-            <div className="surface-body">
+            <div className="editor-shell editor-shell--output">
               {busy ? (
                 <LoadingState detail={modelStatus.detail} />
               ) : result ? (
@@ -255,17 +235,17 @@ function App() {
                   value={result.redactedText}
                   readOnly
                   spellCheck={false}
-                  className="editor-textarea editor-textarea--output"
+                  className="editor-textarea editor-textarea--readonly"
                 />
               ) : (
                 <EmptyResultState />
               )}
             </div>
 
-            <div className="surface-footer">
+            <div className="pane-footer">
               {result ? (
                 <>
-                  <div className="text-sm text-[color:var(--fg-muted)]">
+                  <div className="result-summary">
                     {result.summary.spanCount.toLocaleString()} private replacement
                     {result.summary.spanCount === 1 ? '' : 's'} with the local{' '}
                     {result.summary.backend.toUpperCase()} engine.
@@ -276,13 +256,13 @@ function App() {
                       className="btn-ghost"
                       onClick={handleCopy}
                     >
-                      <ClipboardCopy size={16} strokeWidth={1.4} />
-                      Copy
+                      <ClipboardCopy size={16} strokeWidth={1.4} aria-hidden="true" />
+                      <span>Copy</span>
                     </button>
                   </div>
                 </>
               ) : (
-                <div className="text-sm text-[color:var(--fg-muted)]">
+                <div className="result-summary">
                   The private version appears here.
                 </div>
               )}
@@ -301,9 +281,9 @@ function App() {
 
 function MetricStrip({ words, chars }: { words: number; chars: number }) {
   return (
-    <div className="metric-strip">
+    <div className="metric-strip" aria-label={`${words} words, ${chars} characters`}>
       <span>{words.toLocaleString()} words</span>
-      <span className="metric-strip__divider">•</span>
+      <span className="metric-strip__divider">/</span>
       <span>{chars.toLocaleString()} chars</span>
     </div>
   )
@@ -312,14 +292,10 @@ function MetricStrip({ words, chars }: { words: number; chars: number }) {
 function LoadingState({ detail }: { detail: string }) {
   return (
     <div className="loading-state">
-      <div className="loading-orb" aria-hidden="true" />
-      <div className="space-y-2 text-center">
-        <div className="surface-eyebrow text-[color:var(--accent)]">
-          Working locally
-        </div>
-        <p className="max-w-[22rem] text-sm text-[color:var(--fg-muted)]">
-          {detail}
-        </p>
+      <div className="surface-eyebrow">Local engine</div>
+      <p>{detail}</p>
+      <div className="loading-rail" aria-hidden="true">
+        <span />
       </div>
     </div>
   )
@@ -328,10 +304,8 @@ function LoadingState({ detail }: { detail: string }) {
 function EmptyResultState() {
   return (
     <div className="empty-state">
-      <div className="surface-eyebrow text-[color:var(--fg-dim)]">Waiting</div>
-      <p className="max-w-[22rem] text-center text-sm text-[color:var(--fg-muted)]">
-        Run the privacy pass and the paste-ready version will appear here.
-      </p>
+      <div className="surface-eyebrow">Waiting</div>
+      <p>Run the privacy pass and the paste-ready version will appear here.</p>
     </div>
   )
 }
