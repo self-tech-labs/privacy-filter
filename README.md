@@ -4,8 +4,6 @@ Open-source, local-first macOS redaction for Swiss privacy-sensitive professiona
 
 [Project site](https://self-tech-labs.github.io/privacy-filter/) · [Releases](https://github.com/self-tech-labs/privacy-filter/releases) · [Privacy notes](docs/PRIVACY.md) · [Security policy](SECURITY.md)
 
-![Privacy Filter desktop app](docs/assets/privacy-filter-desktop.png)
-
 ## Why this exists
 
 `Privacy Filter` helps reduce obvious exposure when a lawyer, doctor, or other specialist wants help from a frontier model but should not start by pasting raw material into a hosted system.
