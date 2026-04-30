@@ -164,6 +164,49 @@ describe('App', () => {
     expect(screen.getByText('case.pdf')).toBeInTheDocument()
   })
 
+  it('lists skipped unsupported files after a folder scan', async () => {
+    scanPrivacyFolderMock.mockResolvedValueOnce({
+      inputRoot: '/Users/test/input',
+      files: [
+        {
+          path: '/Users/test/input/case.pdf',
+          relativePath: 'case.pdf',
+          outputRelativePath: 'case.pdf.md',
+          extension: 'pdf',
+          bytes: 2048,
+          kind: 'pdf',
+        },
+      ],
+      unsupported: [
+        {
+          path: '/Users/test/input/archive.zip',
+          relativePath: 'archive.zip',
+          extension: 'zip',
+          reason: 'Unsupported file extension',
+        },
+        {
+          path: '/Users/test/input/nested/photo.png',
+          relativePath: 'nested/photo.png',
+          extension: 'png',
+          reason: 'Unsupported file extension',
+        },
+      ],
+      warnings: [],
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('tab', { name: /folder/i }))
+    fireEvent.click(screen.getByRole('button', { name: /choose source/i }))
+
+    expect(await screen.findByText(/2 unsupported files were skipped/i)).toBeInTheDocument()
+    expect(screen.getByText('archive.zip')).toBeInTheDocument()
+    expect(screen.getByText('nested/photo.png')).toBeInTheDocument()
+    expect(screen.getByText('.ZIP / Unsupported file extension')).toBeInTheDocument()
+    expect(screen.getByText('.PNG / Unsupported file extension')).toBeInTheDocument()
+    expect(screen.queryByText('2 unsupported files were skipped.')).not.toBeInTheDocument()
+  })
+
   it('runs folder processing through extraction, redaction, output, and manifest writes', async () => {
     render(<App />)
 

@@ -792,12 +792,14 @@ button:disabled {
   margin: 0;
 }
 
-.batch-warnings {
+.batch-warnings,
+.skipped-files,
+.skipped-files__list {
   display: grid;
   gap: 8px;
 }
 
-.batch-warnings div {
+.batch-warnings__item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 0.5rem;
@@ -805,6 +807,62 @@ button:disabled {
   color: var(--danger);
   font-size: 0.82rem;
   line-height: 1.4;
+}
+
+.skipped-files {
+  min-width: 0;
+}
+
+.skipped-files__header {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: start;
+  color: var(--danger);
+}
+
+.skipped-files__header div {
+  display: grid;
+  min-width: 0;
+  gap: 0.16rem;
+}
+
+.skipped-files__header span {
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.skipped-files__header small {
+  color: var(--fg-muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.skipped-file {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 20%, var(--border));
+  border-radius: 7px;
+  background: var(--danger-soft);
+  padding: 0.58rem 0.64rem;
+}
+
+.skipped-file span {
+  color: var(--fg);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.skipped-file small {
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: 0.63rem;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
 }
 
 .legal-strip {

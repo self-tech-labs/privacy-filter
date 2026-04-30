@@ -36,6 +36,7 @@ import type {
   PrivacyFolderFile,
   PrivacyFolderScan,
   PrivacyRunResult,
+  UnsupportedPrivacyFile,
 } from './types/privacy'
 
 type WorkspaceMode = 'text' | 'folder'
@@ -754,12 +755,7 @@ function BatchRunPanel({
   manifestPath: string | null
   scan: PrivacyFolderScan | null
 }) {
-  const warnings = [
-    ...(scan?.warnings ?? []),
-    ...(scan && scan.unsupported.length > 0
-      ? [`${scan.unsupported.length.toLocaleString()} unsupported files were skipped.`]
-      : []),
-  ]
+  const warnings = scan?.warnings ?? []
 
   return (
     <div className="batch-run-panel">
@@ -797,14 +793,47 @@ function BatchRunPanel({
       {warnings.length > 0 ? (
         <div className="batch-warnings">
           {warnings.map((warning) => (
-            <div key={warning}>
+            <div className="batch-warnings__item" key={warning}>
               <AlertTriangle size={15} strokeWidth={1.7} aria-hidden="true" />
               <span>{warning}</span>
             </div>
           ))}
         </div>
       ) : null}
+
+      {scan && scan.unsupported.length > 0 ? (
+        <SkippedFilesList files={scan.unsupported} />
+      ) : null}
     </div>
+  )
+}
+
+function SkippedFilesList({ files }: { files: UnsupportedPrivacyFile[] }) {
+  const fileLabel = files.length === 1 ? 'file was' : 'files were'
+
+  return (
+    <section
+      className="skipped-files"
+      aria-label={`${files.length.toLocaleString()} skipped files`}
+    >
+      <div className="skipped-files__header">
+        <AlertTriangle size={15} strokeWidth={1.7} aria-hidden="true" />
+        <div>
+          <span>
+            {files.length.toLocaleString()} unsupported {fileLabel} skipped
+          </span>
+          <small>These files were not processed.</small>
+        </div>
+      </div>
+      <div className="skipped-files__list">
+        {files.map((file) => (
+          <div className="skipped-file" key={file.path}>
+            <span>{file.relativePath}</span>
+            <small>{skippedFileMeta(file)}</small>
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -916,6 +945,12 @@ function folderStatusLabel(status: FolderRunStatus) {
 
 function defaultOutputFolder(inputRoot: string) {
   return `${inputRoot.replace(/[\\/]+$/, '')}-private-text`
+}
+
+function skippedFileMeta(file: UnsupportedPrivacyFile) {
+  const extension = file.extension ? `.${file.extension}` : 'no extension'
+
+  return `${extension.toUpperCase()} / ${file.reason}`
 }
 
 function formatBytes(bytes: number) {
