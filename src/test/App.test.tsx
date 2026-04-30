@@ -133,9 +133,11 @@ describe('App', () => {
     expect(
       screen.queryByRole('button', { name: /choose files/i }),
     ).not.toBeInTheDocument()
-    expect(screen.getByText(/privacy filter by ogram/i)).toBeInTheDocument()
     expect(
-      screen.getByText(/open-source software\. use it at your own risk/i),
+      screen.getByRole('heading', { name: /^privacy filter$/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/local after first download\. use at your own risk/i),
     ).toBeInTheDocument()
 
     enterSourceText('Alice Example alice@example.com')
@@ -257,7 +259,7 @@ describe('App', () => {
     await waitFor(() => {
       expect(screen.getByLabelText(/source text/i)).toHaveValue('')
     })
-    expect(screen.getByText(/the private version appears here/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/private output appears here/i).length).toBeGreaterThan(0)
   })
 
   it('shows a manual copy hint when clipboard access is denied', async () => {
