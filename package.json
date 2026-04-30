@@ -1,7 +1,7 @@
 {
   "name": "ogram-private",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Privacy Filter by ogram is a local-first macOS redaction tool for Swiss privacy-sensitive professionals.",
   "license": "MIT",
   "homepage": "https://self-tech-labs.github.io/privacy-filter/",

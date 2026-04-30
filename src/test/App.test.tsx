@@ -133,9 +133,11 @@ describe('App', () => {
     expect(
       screen.queryByRole('button', { name: /choose files/i }),
     ).not.toBeInTheDocument()
-    expect(screen.getByText(/privacy filter by ogram/i)).toBeInTheDocument()
     expect(
-      screen.getByText(/open-source software\. use it at your own risk/i),
+      screen.getByRole('heading', { name: /^privacy filter$/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/local after first download\. use at your own risk/i),
     ).toBeInTheDocument()
 
     enterSourceText('Alice Example alice@example.com')
@@ -160,6 +162,49 @@ describe('App', () => {
     expect(screen.getByText('/Users/test/input')).toBeInTheDocument()
     expect(screen.getByText('/Users/test/input-private-text')).toBeInTheDocument()
     expect(screen.getByText('case.pdf')).toBeInTheDocument()
+  })
+
+  it('lists skipped unsupported files after a folder scan', async () => {
+    scanPrivacyFolderMock.mockResolvedValueOnce({
+      inputRoot: '/Users/test/input',
+      files: [
+        {
+          path: '/Users/test/input/case.pdf',
+          relativePath: 'case.pdf',
+          outputRelativePath: 'case.pdf.md',
+          extension: 'pdf',
+          bytes: 2048,
+          kind: 'pdf',
+        },
+      ],
+      unsupported: [
+        {
+          path: '/Users/test/input/archive.zip',
+          relativePath: 'archive.zip',
+          extension: 'zip',
+          reason: 'Unsupported file extension',
+        },
+        {
+          path: '/Users/test/input/nested/photo.png',
+          relativePath: 'nested/photo.png',
+          extension: 'png',
+          reason: 'Unsupported file extension',
+        },
+      ],
+      warnings: [],
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('tab', { name: /folder/i }))
+    fireEvent.click(screen.getByRole('button', { name: /choose source/i }))
+
+    expect(await screen.findByText(/2 unsupported files were skipped/i)).toBeInTheDocument()
+    expect(screen.getByText('archive.zip')).toBeInTheDocument()
+    expect(screen.getByText('nested/photo.png')).toBeInTheDocument()
+    expect(screen.getByText('.ZIP / Unsupported file extension')).toBeInTheDocument()
+    expect(screen.getByText('.PNG / Unsupported file extension')).toBeInTheDocument()
+    expect(screen.queryByText('2 unsupported files were skipped.')).not.toBeInTheDocument()
   })
 
   it('runs folder processing through extraction, redaction, output, and manifest writes', async () => {
@@ -257,7 +302,7 @@ describe('App', () => {
     await waitFor(() => {
       expect(screen.getByLabelText(/source text/i)).toHaveValue('')
     })
-    expect(screen.getByText(/the private version appears here/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/private output appears here/i).length).toBeGreaterThan(0)
   })
 
   it('shows a manual copy hint when clipboard access is denied', async () => {

@@ -19,10 +19,7 @@ import {
 } from 'react'
 
 import {
-  APP_LOCAL_PROCESSING_NOTE,
-  APP_SHORT_TAGLINE,
   BRAND_NAME,
-  LEGAL_DISCLAIMER_SHORT,
   PRODUCT_NAME,
   PRODUCT_PUBLIC_NAME,
 } from './content/projectContent'
@@ -39,6 +36,7 @@ import type {
   PrivacyFolderFile,
   PrivacyFolderScan,
   PrivacyRunResult,
+  UnsupportedPrivacyFile,
 } from './types/privacy'
 
 type WorkspaceMode = 'text' | 'folder'
@@ -369,16 +367,44 @@ function App() {
         <header className="app-header">
           <div className="brand-cluster">
             <div className="wordmark">{BRAND_NAME}</div>
-            <div className="brand-rule" aria-hidden="true" />
             <div className="brand-copy">
-              <p className="product-label">{PRODUCT_NAME}</p>
-              <h1>{PRODUCT_PUBLIC_NAME}</h1>
-              <p>{APP_SHORT_TAGLINE}</p>
+              <p className="product-label">Desktop privacy filter</p>
+              <h1>{PRODUCT_NAME}</h1>
             </div>
           </div>
 
-          <div className="header-side">
-            <div className="header-credit">Desktop app by ogram</div>
+          <div className="header-controls">
+            <div className="mode-switch" role="tablist" aria-label="Privacy workflow">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'text'}
+                className={
+                  mode === 'text' ? 'mode-switch__tab is-active' : 'mode-switch__tab'
+                }
+                onClick={() => setMode('text')}
+                disabled={appBusy}
+              >
+                <FileText size={15} strokeWidth={1.8} aria-hidden="true" />
+                <span>Text</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'folder'}
+                className={
+                  mode === 'folder'
+                    ? 'mode-switch__tab is-active'
+                    : 'mode-switch__tab'
+                }
+                onClick={() => setMode('folder')}
+                disabled={appBusy}
+              >
+                <FolderInput size={15} strokeWidth={1.8} aria-hidden="true" />
+                <span>Folder</span>
+              </button>
+            </div>
+
             <div
               className="status-chip"
               data-state={appBusy ? 'busy' : modelStatus.phase}
@@ -391,39 +417,6 @@ function App() {
           </div>
         </header>
 
-        <section className="context-strip" aria-label="Workflow context">
-          <span>Open source</span>
-          <span>Swiss privacy workflows</span>
-          <span>{APP_LOCAL_PROCESSING_NOTE}</span>
-        </section>
-
-        <div className="mode-switch" role="tablist" aria-label="Privacy workflow">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'text'}
-            className={mode === 'text' ? 'mode-switch__tab is-active' : 'mode-switch__tab'}
-            onClick={() => setMode('text')}
-            disabled={appBusy}
-          >
-            <FileText size={16} strokeWidth={1.4} aria-hidden="true" />
-            <span>Text</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'folder'}
-            className={
-              mode === 'folder' ? 'mode-switch__tab is-active' : 'mode-switch__tab'
-            }
-            onClick={() => setMode('folder')}
-            disabled={appBusy}
-          >
-            <FolderInput size={16} strokeWidth={1.4} aria-hidden="true" />
-            <span>Folder</span>
-          </button>
-        </div>
-
         {error ? <NoticeBar tone="error" text={error} /> : null}
         {!error && notice ? <NoticeBar tone="neutral" text={notice} /> : null}
 
@@ -432,8 +425,8 @@ function App() {
             <section className="work-pane" aria-labelledby="source-pane-title">
               <div className="pane-header">
                 <div className="pane-heading">
-                  <p className="surface-eyebrow">Source text</p>
-                  <h2 id="source-pane-title">Working draft</h2>
+                  <p className="surface-eyebrow">Input</p>
+                  <h2 id="source-pane-title">Source</h2>
                 </div>
                 <MetricStrip
                   words={sourceMetrics.words}
@@ -447,7 +440,7 @@ function App() {
                   value={sourceText}
                   onChange={(event) => applySourceText(event.target.value)}
                   onKeyDown={handleSourceKeyDown}
-                  placeholder="Paste the material you want to make private."
+                  placeholder="Paste text to redact."
                   spellCheck={false}
                   className="editor-textarea"
                 />
@@ -455,8 +448,8 @@ function App() {
 
               <div className="pane-footer">
                 <div className="local-note">
-                  <Shield size={15} strokeWidth={1.4} aria-hidden="true" />
-                  <span>{APP_LOCAL_PROCESSING_NOTE}</span>
+                  <Shield size={15} strokeWidth={1.7} aria-hidden="true" />
+                  <span>Local on this Mac</span>
                 </div>
 
                 <div className="action-row">
@@ -467,7 +460,7 @@ function App() {
                       onClick={handleReset}
                       disabled={busy}
                     >
-                      <Trash2 size={16} strokeWidth={1.4} aria-hidden="true" />
+                      <Trash2 size={15} strokeWidth={1.7} aria-hidden="true" />
                       <span>Clear</span>
                     </button>
                   ) : null}
@@ -478,7 +471,7 @@ function App() {
                     onClick={handleMakePrivate}
                     disabled={!hasSource || busy}
                   >
-                    <Sparkles size={16} strokeWidth={1.4} aria-hidden="true" />
+                    <Sparkles size={15} strokeWidth={1.7} aria-hidden="true" />
                     <span>{busy ? 'Making private' : 'Make private'}</span>
                   </button>
                 </div>
@@ -488,8 +481,8 @@ function App() {
             <section className="work-pane" aria-labelledby="private-pane-title">
               <div className="pane-header">
                 <div className="pane-heading">
-                  <p className="surface-eyebrow">Private text</p>
-                  <h2 id="private-pane-title">Clean draft</h2>
+                  <p className="surface-eyebrow">Output</p>
+                  <h2 id="private-pane-title">Private</h2>
                 </div>
                 {result ? (
                   <MetricStrip
@@ -519,9 +512,9 @@ function App() {
                 {result ? (
                   <>
                     <div className="result-summary">
-                      {result.summary.spanCount.toLocaleString()} private replacement
-                      {result.summary.spanCount === 1 ? '' : 's'} with the local{' '}
-                      {result.summary.backend.toUpperCase()} engine.
+                      {result.summary.spanCount.toLocaleString()} replacement
+                      {result.summary.spanCount === 1 ? '' : 's'} /{' '}
+                      {result.summary.backend.toUpperCase()}
                     </div>
                     <div className="action-row">
                       <button
@@ -530,8 +523,8 @@ function App() {
                         onClick={handleCopy}
                       >
                         <ClipboardCopy
-                          size={16}
-                          strokeWidth={1.4}
+                          size={15}
+                          strokeWidth={1.7}
                           aria-hidden="true"
                         />
                         <span>Copy</span>
@@ -540,7 +533,7 @@ function App() {
                   </>
                 ) : (
                   <div className="result-summary">
-                    The private version appears here.
+                    Ready
                   </div>
                 )}
               </div>
@@ -551,8 +544,8 @@ function App() {
             <section className="work-pane" aria-labelledby="folder-source-title">
               <div className="pane-header">
                 <div className="pane-heading">
-                  <p className="surface-eyebrow">Source folder</p>
-                  <h2 id="folder-source-title">Documents</h2>
+                  <p className="surface-eyebrow">Input</p>
+                  <h2 id="folder-source-title">Source</h2>
                 </div>
                 <MetricStrip
                   words={folderScan?.files.length ?? 0}
@@ -576,7 +569,7 @@ function App() {
                     onClick={handleChooseInputFolder}
                     disabled={folderBusy}
                   >
-                    <FolderInput size={16} strokeWidth={1.4} aria-hidden="true" />
+                    <FolderInput size={15} strokeWidth={1.7} aria-hidden="true" />
                     <span>Choose source</span>
                   </button>
                 </div>
@@ -586,8 +579,8 @@ function App() {
 
               <div className="pane-footer">
                 <div className="local-note">
-                  <Shield size={15} strokeWidth={1.4} aria-hidden="true" />
-                  <span>DOC, DOCX, PDF, PPT, PPTX, XLS, XLSX, TXT, CSV, JSON</span>
+                  <Shield size={15} strokeWidth={1.7} aria-hidden="true" />
+                  <span>Office, PDF, and text files</span>
                 </div>
                 <div className="result-summary">
                   {folderScan
@@ -600,8 +593,8 @@ function App() {
             <section className="work-pane" aria-labelledby="folder-output-title">
               <div className="pane-header">
                 <div className="pane-heading">
-                  <p className="surface-eyebrow">Private folder</p>
-                  <h2 id="folder-output-title">Anonymized Markdown</h2>
+                  <p className="surface-eyebrow">Output</p>
+                  <h2 id="folder-output-title">Private</h2>
                 </div>
                 <MetricStrip
                   words={batchTotals.done}
@@ -625,7 +618,7 @@ function App() {
                     onClick={handleChooseOutputFolder}
                     disabled={folderBusy}
                   >
-                    <FolderOutput size={16} strokeWidth={1.4} aria-hidden="true" />
+                    <FolderOutput size={15} strokeWidth={1.7} aria-hidden="true" />
                     <span>Choose output</span>
                   </button>
                   <button
@@ -639,7 +632,7 @@ function App() {
                       folderScan.files.length === 0
                     }
                   >
-                    <Play size={16} strokeWidth={1.4} aria-hidden="true" />
+                    <Play size={15} strokeWidth={1.7} aria-hidden="true" />
                     <span>{folderBusy ? 'Processing' : 'Run folder'}</span>
                   </button>
                 </div>
@@ -666,9 +659,9 @@ function App() {
           </section>
         )}
 
-        <footer className="legal-strip" aria-label="Legal disclaimer">
+        <footer className="legal-strip" aria-label="Privacy and legal note">
           <span className="legal-strip__label">Open source</span>
-          <p>{LEGAL_DISCLAIMER_SHORT}</p>
+          <p>Local after first download. Use at your own risk.</p>
         </footer>
       </div>
     </main>
@@ -713,7 +706,7 @@ function FolderPathBlock({
   return (
     <div className="folder-path-block">
       <div className="folder-path-block__label">
-        <Icon size={16} strokeWidth={1.4} aria-hidden="true" />
+        <Icon size={15} strokeWidth={1.7} aria-hidden="true" />
         <span>{label}</span>
       </div>
       <p>{path ?? empty}</p>
@@ -726,7 +719,7 @@ function BatchList({ items }: { items: BatchItem[] }) {
     return (
       <div className="batch-empty">
         <div className="surface-eyebrow">Waiting</div>
-        <p>Supported files appear here after folder scan.</p>
+        <p>Files appear after scan.</p>
       </div>
     )
   }
@@ -762,12 +755,7 @@ function BatchRunPanel({
   manifestPath: string | null
   scan: PrivacyFolderScan | null
 }) {
-  const warnings = [
-    ...(scan?.warnings ?? []),
-    ...(scan && scan.unsupported.length > 0
-      ? [`${scan.unsupported.length.toLocaleString()} unsupported files were skipped.`]
-      : []),
-  ]
+  const warnings = scan?.warnings ?? []
 
   return (
     <div className="batch-run-panel">
@@ -795,7 +783,7 @@ function BatchRunPanel({
       {manifestPath ? (
         <div className="folder-path-block folder-path-block--manifest">
           <div className="folder-path-block__label">
-            <FileText size={16} strokeWidth={1.4} aria-hidden="true" />
+            <FileText size={15} strokeWidth={1.7} aria-hidden="true" />
             <span>Manifest</span>
           </div>
           <p>{manifestPath}</p>
@@ -805,21 +793,54 @@ function BatchRunPanel({
       {warnings.length > 0 ? (
         <div className="batch-warnings">
           {warnings.map((warning) => (
-            <div key={warning}>
-              <AlertTriangle size={15} strokeWidth={1.4} aria-hidden="true" />
+            <div className="batch-warnings__item" key={warning}>
+              <AlertTriangle size={15} strokeWidth={1.7} aria-hidden="true" />
               <span>{warning}</span>
             </div>
           ))}
         </div>
       ) : null}
+
+      {scan && scan.unsupported.length > 0 ? (
+        <SkippedFilesList files={scan.unsupported} />
+      ) : null}
     </div>
+  )
+}
+
+function SkippedFilesList({ files }: { files: UnsupportedPrivacyFile[] }) {
+  const fileLabel = files.length === 1 ? 'file was' : 'files were'
+
+  return (
+    <section
+      className="skipped-files"
+      aria-label={`${files.length.toLocaleString()} skipped files`}
+    >
+      <div className="skipped-files__header">
+        <AlertTriangle size={15} strokeWidth={1.7} aria-hidden="true" />
+        <div>
+          <span>
+            {files.length.toLocaleString()} unsupported {fileLabel} skipped
+          </span>
+          <small>These files were not processed.</small>
+        </div>
+      </div>
+      <div className="skipped-files__list">
+        {files.map((file) => (
+          <div className="skipped-file" key={file.path}>
+            <span>{file.relativePath}</span>
+            <small>{skippedFileMeta(file)}</small>
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }
 
 function LoadingState({ detail }: { detail: string }) {
   return (
     <div className="loading-state">
-      <div className="surface-eyebrow">Local engine</div>
+      <div className="surface-eyebrow">Engine</div>
       <p>{detail}</p>
       <div className="loading-rail" aria-hidden="true">
         <span />
@@ -832,7 +853,7 @@ function EmptyResultState() {
   return (
     <div className="empty-state">
       <div className="surface-eyebrow">Waiting</div>
-      <p>Run the privacy pass and the paste-ready version will appear here.</p>
+      <p>Private output appears here.</p>
     </div>
   )
 }
@@ -845,7 +866,11 @@ function NoticeBar({
   text: string
 }) {
   return (
-    <div className={`notice-bar ${tone === 'error' ? 'notice-bar--error' : ''}`}>
+    <div
+      className={`notice-bar ${tone === 'error' ? 'notice-bar--error' : ''}`}
+      role="status"
+      aria-live="polite"
+    >
       <span className="notice-bar__dot" />
       <span>{text}</span>
     </div>
@@ -920,6 +945,12 @@ function folderStatusLabel(status: FolderRunStatus) {
 
 function defaultOutputFolder(inputRoot: string) {
   return `${inputRoot.replace(/[\\/]+$/, '')}-private-text`
+}
+
+function skippedFileMeta(file: UnsupportedPrivacyFile) {
+  const extension = file.extension ? `.${file.extension}` : 'no extension'
+
+  return `${extension.toUpperCase()} / ${file.reason}`
 }
 
 function formatBytes(bytes: number) {
