@@ -11,6 +11,10 @@ node_modules
 dist
 site-dist
 dist-ssr
+.playwright-mcp/
+demo-output/
+public/demo/
+test-results/
 *.local
 .env
 .env.*

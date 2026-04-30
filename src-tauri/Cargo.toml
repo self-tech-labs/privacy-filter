@@ -1,6 +1,6 @@
 [package]
 name = "ogram-private-desktop"
-version = "0.1.0"
+version = "0.1.1"
 description = "Privacy Filter by ogram is a local-first macOS redaction utility for privacy-sensitive workflows."
 authors = ["ogram"]
 license = "MIT"
