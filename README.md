@@ -12,9 +12,9 @@ Open-source, local-first macOS redaction for Swiss privacy-sensitive professiona
 
 The workflow is deliberately narrow:
 
-1. Paste a working draft into the desktop app.
-2. Run the local privacy pass.
-3. Move the cleaned version into ChatGPT or another model workflow.
+1. Paste a working draft or choose a local folder of documents.
+2. Run local extraction and the local privacy pass.
+3. Move the cleaned text into ChatGPT or another model workflow.
 
 It is built for v1 simplicity, not kitchen-sink document management.
 
@@ -28,7 +28,8 @@ It is built for v1 simplicity, not kitchen-sink document management.
 
 - Runs the privacy filter locally after the first model download.
 - Replaces detected entities with typed placeholders such as `<PRIVATE_PERSON>` and `<PRIVATE_DATE>`.
-- Keeps the interface paste-only so the workflow stays predictable and easy to audit.
+- Processes pasted text, or scans a folder and writes a mirrored folder of anonymized Markdown.
+- Extracts Office documents with `office_oxide`, text-layer PDFs with `pdf-extract`, and UTF-8 text-like files directly.
 - Ships as a Tauri desktop app for macOS.
 
 ## Model reference

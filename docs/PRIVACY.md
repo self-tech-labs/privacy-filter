@@ -3,6 +3,8 @@
 ## What runs locally
 
 - The privacy pass itself runs locally on the user's machine.
+- Folder processing extracts source files locally and writes anonymized Markdown
+  into a user-selected output folder.
 - Once the model is downloaded and cached, subsequent redaction runs are intended to stay on-device.
 - The app stores cached model assets locally for reuse.
 
@@ -11,6 +13,7 @@
 - The first model download can require network access.
 - Future updates or release downloads can require network access depending on how the app is distributed.
 - The project website and GitHub documentation are public web resources.
+- Document extraction and output writing do not use a hosted service.
 
 ## What the tool is designed to do
 
@@ -25,6 +28,8 @@ private entities and replace them with placeholders such as
 - Legal compliance by itself
 - Medical confidentiality by itself
 - Detection of every possible identifier or sensitive inference
+- OCR for scanned PDFs or images in the current native extractor path; sparse
+  PDF text layers are reported as warnings in the batch manifest.
 
 ## User responsibility
 

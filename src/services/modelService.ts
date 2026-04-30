@@ -13,6 +13,8 @@ const MODEL_ID = 'openai/privacy-filter'
 const PIPELINE_TASK = 'token-classification'
 const CACHE_HINT_KEY = 'ogram-private-model-ready'
 const FALLBACK_BACKEND: RuntimeBackend = 'wasm'
+const MAX_CLASSIFIER_CHARS = 3200
+const MIN_TRAILING_CHARS = 600
 const BACKEND_DTYPE: Record<RuntimeBackend, 'q4' | 'q8'> = {
   webgpu: 'q4',
   wasm: 'q8',
@@ -35,6 +37,11 @@ interface ClassifierState {
     options?: { aggregation_strategy?: 'simple' },
   ) => Promise<GroupedSpan[]>
   backend: RuntimeBackend
+}
+
+interface TextChunk {
+  start: number
+  text: string
 }
 
 let classifierPromise: Promise<ClassifierState> | null = null
@@ -183,6 +190,87 @@ async function getClassifier(statusListener?: StatusListener) {
   return classifierPromise
 }
 
+function splitForClassifier(sourceText: string): TextChunk[] {
+  if (sourceText.length <= MAX_CLASSIFIER_CHARS) {
+    return [{ start: 0, text: sourceText }]
+  }
+
+  const chunks: TextChunk[] = []
+  let start = 0
+
+  while (start < sourceText.length) {
+    let end = Math.min(start + MAX_CLASSIFIER_CHARS, sourceText.length)
+
+    if (end < sourceText.length) {
+      const window = sourceText.slice(start, end)
+      const splitAt = Math.max(
+        window.lastIndexOf('\n\n'),
+        window.lastIndexOf('\n'),
+        window.lastIndexOf('. '),
+        window.lastIndexOf(' '),
+      )
+
+      if (splitAt > MIN_TRAILING_CHARS) {
+        end = start + splitAt + 1
+      }
+    }
+
+    chunks.push({
+      start,
+      text: sourceText.slice(start, end),
+    })
+    start = end
+  }
+
+  return chunks
+}
+
+async function classifyText(
+  sourceText: string,
+  classifier: ClassifierState['classifier'],
+  backend: RuntimeBackend,
+  statusListener?: StatusListener,
+): Promise<GroupedSpan[]> {
+  const chunks = splitForClassifier(sourceText)
+  const spans: GroupedSpan[] = []
+
+  for (const [index, chunk] of chunks.entries()) {
+    emitStatus(statusListener, {
+      phase: 'loading',
+      detail:
+        chunks.length === 1
+          ? 'Making text private'
+          : `Making text private (${index + 1}/${chunks.length})`,
+      backend,
+      progress: index / chunks.length,
+      cacheHint: true,
+    })
+
+    const chunkOutput = await classifier(chunk.text, {
+      aggregation_strategy: 'simple',
+    })
+
+    spans.push(
+      ...chunkOutput.map((span) => ({
+        ...span,
+        start:
+          typeof span.start === 'number' ? chunk.start + span.start : span.start,
+        end: typeof span.end === 'number' ? chunk.start + span.end : span.end,
+      })),
+    )
+  }
+
+  emitStatus(statusListener, {
+    phase: 'loading',
+    detail: 'Finalizing private text',
+    backend,
+    progress: 1,
+    cacheHint: true,
+  })
+
+  return spans
+}
+
 export function getInitialModelStatus(): ModelStatus {
   return {
     phase: 'idle',
@@ -208,7 +296,12 @@ export async function redactText(
     progress: null,
     cacheHint: true,
   })
-  const modelOutput = await classifier(sourceText, { aggregation_strategy: 'simple' })
+  const modelOutput = await classifyText(
+    sourceText,
+    classifier,
+    backend,
+    statusListener,
+  )
 
   emitStatus(statusListener, {
     phase: 'ready',

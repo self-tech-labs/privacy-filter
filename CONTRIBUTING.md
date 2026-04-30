@@ -5,7 +5,7 @@ Thanks for contributing to Privacy Filter by ogram.
 ## Before you start
 
 - Read [README.md](README.md), [docs/PRIVACY.md](docs/PRIVACY.md), and [DISCLAIMER.md](DISCLAIMER.md).
-- Keep the product intentionally narrow: paste-only local redaction before downstream AI use.
+- Keep the product intentionally narrow: local text or folder-to-Markdown redaction before downstream AI use.
 - Do not expand scope with document-management or cloud-sync behavior unless there is an explicit design decision to do so.
 
 ## Local setup

@@ -5,9 +5,30 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { ModelStatus, OutputMode, PrivacyRunResult } from '../types/privacy'
 
-const { redactTextMock, getInitialModelStatusMock } = vi.hoisted(() => ({
+const {
+  extractPrivacyFileMock,
+  pickPrivacyFolderMock,
+  redactTextMock,
+  scanPrivacyFolderMock,
+  getInitialModelStatusMock,
+  writePrivacyManifestMock,
+  writePrivacyOutputMock,
+} = vi.hoisted(() => ({
+  extractPrivacyFileMock: vi.fn(),
+  pickPrivacyFolderMock: vi.fn(),
   redactTextMock: vi.fn(),
+  scanPrivacyFolderMock: vi.fn(),
   getInitialModelStatusMock: vi.fn(),
+  writePrivacyManifestMock: vi.fn(),
+  writePrivacyOutputMock: vi.fn(),
+}))
+
+vi.mock('../services/batchService', () => ({
+  extractPrivacyFile: extractPrivacyFileMock,
+  pickPrivacyFolder: pickPrivacyFolderMock,
+  scanPrivacyFolder: scanPrivacyFolderMock,
+  writePrivacyManifest: writePrivacyManifestMock,
+  writePrivacyOutput: writePrivacyOutputMock,
 }))
 
 vi.mock('../services/modelService', () => ({
@@ -71,9 +92,42 @@ describe('App', () => {
 
     getInitialModelStatusMock.mockReturnValue(initialStatus)
     redactTextMock.mockResolvedValue(createResult('Clean <PRIVATE_PERSON>'))
+    pickPrivacyFolderMock.mockResolvedValue('/Users/test/input')
+    scanPrivacyFolderMock.mockResolvedValue({
+      inputRoot: '/Users/test/input',
+      files: [
+        {
+          path: '/Users/test/input/case.pdf',
+          relativePath: 'case.pdf',
+          outputRelativePath: 'case.pdf.md',
+          extension: 'pdf',
+          bytes: 2048,
+          kind: 'pdf',
+        },
+      ],
+      unsupported: [],
+      warnings: [],
+    })
+    extractPrivacyFileMock.mockResolvedValue({
+      sourcePath: '/Users/test/input/case.pdf',
+      relativePath: 'case.pdf',
+      outputRelativePath: 'case.pdf.md',
+      markdown: 'Alice Example',
+      extractor: 'pdf-extract',
+      warnings: [],
+      charCount: 13,
+    })
+    writePrivacyOutputMock.mockResolvedValue({
+      path: '/Users/test/input-private-text/case.pdf.md',
+      bytes: 21,
+    })
+    writePrivacyManifestMock.mockResolvedValue({
+      path: '/Users/test/input-private-text/_privacy-filter-manifest.json',
+      bytes: 300,
+    })
   })
 
-  it('keeps the interface paste-only and shows the public project framing', async () => {
+  it('keeps the text workflow as the default screen and shows the public project framing', async () => {
     render(<App />)
 
     expect(
@@ -94,6 +148,51 @@ describe('App', () => {
       expect.any(Function),
     )
     expect(writeTextMock).not.toHaveBeenCalled()
+  })
+
+  it('scans a folder and prepares a mirrored private output path', async () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('tab', { name: /folder/i }))
+    fireEvent.click(screen.getByRole('button', { name: /choose source/i }))
+
+    expect(await screen.findByText(/1 files ready/i)).toBeInTheDocument()
+    expect(screen.getByText('/Users/test/input')).toBeInTheDocument()
+    expect(screen.getByText('/Users/test/input-private-text')).toBeInTheDocument()
+    expect(screen.getByText('case.pdf')).toBeInTheDocument()
+  })
+
+  it('runs folder processing through extraction, redaction, output, and manifest writes', async () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('tab', { name: /folder/i }))
+    fireEvent.click(screen.getByRole('button', { name: /choose source/i }))
+    await screen.findByText(/1 files ready/i)
+
+    fireEvent.click(screen.getByRole('button', { name: /run folder/i }))
+
+    expect(await screen.findByText(/folder run completed/i)).toBeInTheDocument()
+    expect(extractPrivacyFileMock).toHaveBeenCalledWith(
+      '/Users/test/input',
+      '/Users/test/input/case.pdf',
+    )
+    expect(redactTextMock).toHaveBeenCalledWith(
+      'Alice Example',
+      'typed',
+      expect.any(Function),
+    )
+    expect(writePrivacyOutputMock).toHaveBeenCalledWith(
+      '/Users/test/input-private-text',
+      'case.pdf.md',
+      'Clean <PRIVATE_PERSON>',
+    )
+    expect(writePrivacyManifestMock).toHaveBeenCalledWith(
+      '/Users/test/input-private-text',
+      expect.objectContaining({
+        inputRoot: '/Users/test/input',
+        outputRoot: '/Users/test/input-private-text',
+      }),
+    )
   })
 
   it('copies the private result only when requested', async () => {

@@ -24,6 +24,10 @@ log = "0.4"
 tauri = { version = "2.10.3", features = [] }
 tauri-plugin-log = "2"
 tauri-plugin-fs = "2"
+office_oxide = "0.1.0"
+pdf-extract = "0.10.0"
+walkdir = "2.5.0"
+tauri-plugin-dialog = "2"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"

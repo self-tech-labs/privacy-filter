@@ -30,3 +30,41 @@ export interface ModelStatus {
   backend: RuntimeBackend | null
   cacheHint: boolean
 }
+
+export interface PrivacyFolderFile {
+  path: string
+  relativePath: string
+  outputRelativePath: string
+  extension: string
+  bytes: number
+  kind: 'office' | 'pdf' | 'text'
+}
+
+export interface UnsupportedPrivacyFile {
+  path: string
+  relativePath: string
+  extension: string
+  reason: string
+}
+
+export interface PrivacyFolderScan {
+  inputRoot: string
+  files: PrivacyFolderFile[]
+  unsupported: UnsupportedPrivacyFile[]
+  warnings: string[]
+}
+
+export interface ExtractedPrivacyFile {
+  sourcePath: string
+  relativePath: string
+  outputRelativePath: string
+  markdown: string
+  extractor: string
+  warnings: string[]
+  charCount: number
+}
+
+export interface PrivacyWriteResult {
+  path: string
+  bytes: number
+}
