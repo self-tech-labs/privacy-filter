@@ -1,6 +1,6 @@
 # Privacy Filter by ogram
 
-Open-source, local-first macOS redaction for Swiss privacy-sensitive professionals who want safer prompt preparation before using frontier models.
+Open-source, local-first desktop redaction for Swiss privacy-sensitive professionals who want safer prompt preparation before using frontier models.
 
 [Project site](https://self-tech-labs.github.io/privacy-filter/) · [Releases](https://github.com/self-tech-labs/privacy-filter/releases) · [Privacy notes](docs/PRIVACY.md) · [Security policy](SECURITY.md)
 
@@ -28,7 +28,7 @@ It is built for v1 simplicity, not kitchen-sink document management.
 - Replaces detected entities with typed placeholders such as `<PRIVATE_PERSON>` and `<PRIVATE_DATE>`.
 - Processes pasted text, or scans a folder and writes a mirrored folder of anonymized Markdown.
 - Extracts Office documents with `office_oxide`, text-layer PDFs with `pdf-extract`, and UTF-8 text-like files directly.
-- Ships as a Tauri desktop app for macOS.
+- Ships as a Tauri desktop app for macOS and Windows.
 
 ## Model reference
 
@@ -55,8 +55,9 @@ The easiest way to try the app is from the [GitHub Releases page](https://github
 
 GitHub always shows `Source code (zip)` and `Source code (tar.gz)` for tagged
 releases. Those are repository archives, not installable desktop builds. The
-actual macOS app download for this project is the `.dmg` file listed under the
-release assets when a signed release has been published.
+actual desktop app downloads for this project are the `.dmg` file for macOS and
+the Windows setup `.exe` listed under the release assets when signed releases
+have been published.
 
 For the initial open-source release, some technical bundle identifiers and artifact names still use the existing `ogram private` naming under the hood. The user-facing app copy is `Privacy Filter by ogram`.
 
@@ -93,11 +94,20 @@ Main commands:
 npm run release:mac:app
 npm run release:mac:dmg
 npm run release:mac:all
+npm run release:windows:nsis
+npm run release:windows:all
 ```
 
-For a public GitHub release, publish the generated `.dmg`,
-`.app.tar.gz`, `.app.tar.gz.sig`, and `latest.json` assets. GitHub's automatic
-source archives are not sufficient for app distribution.
+For a public GitHub release, publish the generated macOS `.dmg`,
+`.app.tar.gz`, `.app.tar.gz.sig`, and `latest.json` assets. For Windows,
+publish the generated setup `.exe`, matching `.exe.sig`, and
+`latest-windows.json` assets. GitHub's automatic source archives are not
+sufficient for app distribution.
+
+The release workflows also upload stable non-technical download aliases:
+`Privacy-Filter-macOS.dmg` and `Privacy-Filter-Windows.exe`. These are intended
+for website download buttons and can be linked through GitHub's
+`/releases/latest/download/...` URLs.
 
 ## Contributing
 

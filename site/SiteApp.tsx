@@ -45,7 +45,7 @@ export function SiteApp() {
               View on GitHub
             </a>
             <a className="site-btn" href={PRODUCT_RELEASES_URL}>
-              View macOS releases
+              View desktop releases
             </a>
             <a className="site-btn" href={PRODUCT_PRIVACY_DOC_URL}>
               Read privacy docs
@@ -54,9 +54,9 @@ export function SiteApp() {
 
           <p className="site-inline-note">{LEGAL_DISCLAIMER_SHORT}</p>
           <p className="site-inline-note">
-            Installable macOS builds appear as `.dmg` assets on tagged releases.
-            GitHub&apos;s `.zip` and `.tar.gz` downloads are source archives, not
-            the desktop app.
+            Installable builds appear as `.dmg` assets for macOS and `.exe`
+            setup assets for Windows on tagged releases. GitHub&apos;s `.zip` and
+            `.tar.gz` downloads are source archives, not the desktop app.
           </p>
           <p className="site-inline-note">
             Main project:{' '}
@@ -70,7 +70,7 @@ export function SiteApp() {
           <div className="site-preview__frame">
             <div className="site-preview__topline">
               <span>Local-first workflow</span>
-              <span>Mac desktop app</span>
+              <span>Desktop app</span>
             </div>
             <div className="site-preview__panel">
               <div>
@@ -129,9 +129,9 @@ export function SiteApp() {
           <div className="site-eyebrow">Product demo</div>
           <h2>Watch the desktop flow in a short privacy-filter walkthrough.</h2>
           <p className="site-section__copy">
-            This clip shows the paste-only workflow: raw text enters the Mac app,
-            obvious private entities are replaced locally, and only the cleaned
-            draft moves downstream.
+            This clip shows the paste-only workflow: raw text enters the desktop
+            app, obvious private entities are replaced locally, and only the
+            cleaned draft moves downstream.
           </p>
         </div>
         <div className="site-demo-card">

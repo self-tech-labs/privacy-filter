@@ -22,7 +22,7 @@ export const APP_SHORT_TAGLINE =
 export const APP_DESCRIPTION =
   'Paste raw text, redact obvious private entities locally, and move only the cleaned draft into your frontier-model workflow.'
 export const APP_LOCAL_PROCESSING_NOTE =
-  'After the first model download, the privacy pass runs on this Mac.'
+  'After the first model download, the privacy pass runs on this device.'
 
 export const LEGAL_DISCLAIMER_SHORT =
   'Open-source software. Use it at your own risk. ogram accepts no responsibility for any downstream use, output, decision, or compliance outcome.'

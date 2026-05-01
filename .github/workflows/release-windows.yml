@@ -1,0 +1,198 @@
+name: Publish Windows Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Optional Git tag to publish, e.g. v0.1.0. Defaults to the current ref.
+        required: false
+        type: string
+      release_name:
+        description: Optional release title
+        required: false
+        type: string
+      prerelease:
+        description: Mark the GitHub release as a pre-release
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-windows-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve release metadata
+        id: release
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            tag="${{ inputs.tag }}"
+            name="${{ inputs.release_name }}"
+            prerelease="${{ inputs.prerelease }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+            name=""
+            prerelease="false"
+          fi
+
+          if [[ -z "${tag}" ]]; then
+            tag="${GITHUB_REF_NAME}"
+          fi
+
+          if [[ -z "${name}" ]]; then
+            name="Privacy Filter ${tag}"
+          fi
+
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "name=${name}" >> "${GITHUB_OUTPUT}"
+          echo "prerelease=${prerelease}" >> "${GITHUB_OUTPUT}"
+
+      - name: Validate release secrets
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [[ -z "${TAURI_SIGNING_PRIVATE_KEY}" ]]; then
+            printf 'Missing required GitHub Actions secret:\n  - TAURI_SIGNING_PRIVATE_KEY\n' >&2
+            printf '\nThis key signs the Windows updater artifact. Code signing is optional but strongly recommended for public Windows downloads.\n' >&2
+            exit 1
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@1.88.0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Import optional Windows signing certificate
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE)) {
+            Write-Host "No WINDOWS_CERTIFICATE secret configured; continuing without Windows code signing."
+            exit 0
+          }
+
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) {
+            Write-Error "WINDOWS_CERTIFICATE is configured but WINDOWS_CERTIFICATE_PASSWORD is missing."
+            exit 1
+          }
+
+          $certificatePath = Join-Path $env:RUNNER_TEMP "windows-signing-certificate.pfx"
+          $encodedCertificate = $env:WINDOWS_CERTIFICATE `
+            -replace '-----BEGIN CERTIFICATE-----', '' `
+            -replace '-----END CERTIFICATE-----', '' `
+            -replace '\s', ''
+          [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($encodedCertificate))
+          $password = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+          $certificates = @(Import-PfxCertificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\My -Password $password)
+
+          if ($certificates.Count -eq 0 -or [string]::IsNullOrWhiteSpace($certificates[0].Thumbprint)) {
+            Write-Error "Imported Windows certificate but could not resolve a thumbprint."
+            exit 1
+          }
+
+          "WINDOWS_CERTIFICATE_THUMBPRINT=$($certificates[0].Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build Windows release artifacts
+        env:
+          OGRAM_RELEASE_BASE_URL: ${{ vars.OGRAM_RELEASE_BASE_URL }}
+          OGRAM_RELEASE_NOTES: Privacy Filter by ogram ${{ steps.release.outputs.tag }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          WINDOWS_DIGEST_ALGORITHM: ${{ vars.WINDOWS_DIGEST_ALGORITHM }}
+          WINDOWS_SIGN_COMMAND: ${{ secrets.WINDOWS_SIGN_COMMAND }}
+          WINDOWS_TIMESTAMP_URL: ${{ vars.WINDOWS_TIMESTAMP_URL }}
+          WINDOWS_TSP: ${{ vars.WINDOWS_TSP }}
+        run: npm run release:windows:nsis
+
+      - name: Verify Windows artifacts
+        shell: bash
+        run: |
+          exe_path="$(find src-tauri/target/release/bundle/nsis -maxdepth 1 -name '*.exe' | head -n 1)"
+
+          if [[ -z "${exe_path}" ]]; then
+            echo "No Windows NSIS installer found after release build." >&2
+            exit 1
+          fi
+
+          if [[ ! -f "${exe_path}.sig" ]]; then
+            echo "No updater signature found for ${exe_path}." >&2
+            exit 1
+          fi
+
+          if [[ ! -f src-tauri/target/release/bundle/updater/latest-windows.json ]]; then
+            echo "No Windows updater manifest found after release build." >&2
+            exit 1
+          fi
+
+      - name: Create stable Windows download alias
+        shell: bash
+        run: |
+          exe_path="$(find src-tauri/target/release/bundle/nsis -maxdepth 1 -name '*.exe' ! -name 'Privacy-Filter-Windows.exe' | head -n 1)"
+
+          if [[ -z "${exe_path}" ]]; then
+            echo "No Windows installer found for stable download alias." >&2
+            exit 1
+          fi
+
+          cp "${exe_path}" src-tauri/target/release/bundle/nsis/Privacy-Filter-Windows.exe
+
+      - name: Create or update GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ steps.release.outputs.tag }}"
+          name="${{ steps.release.outputs.name }}"
+          prerelease_flag=""
+
+          if [[ "${{ steps.release.outputs.prerelease }}" == "true" ]]; then
+            prerelease_flag="--prerelease"
+          fi
+
+          if gh release view "${tag}" > /dev/null 2>&1; then
+            gh release edit "${tag}" --title "${name}" ${prerelease_flag}
+          else
+            gh release create "${tag}" \
+              --target "${GITHUB_SHA}" \
+              --title "${name}" \
+              --generate-notes \
+              ${prerelease_flag}
+          fi
+
+      - name: Upload Windows release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ steps.release.outputs.tag }}" \
+            src-tauri/target/release/bundle/nsis/*.exe \
+            src-tauri/target/release/bundle/nsis/*.exe.sig \
+            src-tauri/target/release/bundle/updater/latest-windows.json \
+            --clobber

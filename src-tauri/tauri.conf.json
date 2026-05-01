@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "ogram private",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "identifier": "ch.ogram.private",
   "build": {
     "frontendDist": "../dist",
@@ -38,8 +38,8 @@
     "homepage": "https://self-tech-labs.github.io/privacy-filter/",
     "copyright": "Copyright (c) 2026 Parsing Sarl. Released under the MIT License.",
     "category": "Business",
-    "shortDescription": "Privacy Filter by ogram is a local-first Mac redaction tool for privacy-sensitive prompt preparation.",
-    "longDescription": "Privacy Filter by ogram helps Swiss law firms, medical practices, and other privacy-sensitive professionals redact working material locally on macOS before moving a cleaned draft into frontier-model workflows.",
+    "shortDescription": "Privacy Filter by ogram is a local-first desktop redaction tool for privacy-sensitive prompt preparation.",
+    "longDescription": "Privacy Filter by ogram helps Swiss law firms, medical practices, and other privacy-sensitive professionals redact working material locally before moving a cleaned draft into frontier-model workflows.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -69,6 +69,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFEODlGRjU4NEU5OTZGMUUKUldRZWI1bE9XUCtKSFlpMTB1WUJDQTZCVklNWUZOc1RzNkFFMmp6NjVIYjRRWFB2U2YzY1M0NzUK",
       "endpoints": [
+        "https://downloads.ogram.ch/private/latest-{{target}}.json",
         "https://downloads.ogram.ch/private/latest.json"
       ]
     }

@@ -26,7 +26,7 @@ What happened instead?
 
 ## Environment
 
-- macOS version:
+- Operating system and version:
 - App version or commit:
 - If relevant, whether this was before or after the first model download:
 

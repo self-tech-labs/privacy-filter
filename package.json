@@ -1,8 +1,8 @@
 {
   "name": "ogram-private",
   "private": true,
-  "version": "0.1.1",
-  "description": "Privacy Filter by ogram is a local-first macOS redaction tool for Swiss privacy-sensitive professionals.",
+  "version": "0.1.2",
+  "description": "Privacy Filter by ogram is a local-first desktop redaction tool for Swiss privacy-sensitive professionals.",
   "license": "MIT",
   "homepage": "https://self-tech-labs.github.io/privacy-filter/",
   "repository": {
@@ -35,7 +35,11 @@
     "release:mac:app": "node scripts/release/build-macos.mjs app",
     "release:mac:dmg": "node scripts/release/build-macos.mjs dmg",
     "release:mac:all": "node scripts/release/build-macos.mjs all",
-    "release:mac:manifest": "node scripts/release/build-macos.mjs manifest"
+    "release:mac:manifest": "node scripts/release/build-macos.mjs manifest",
+    "release:windows:nsis": "node scripts/release/build-windows.mjs nsis",
+    "release:windows:msi": "node scripts/release/build-windows.mjs msi",
+    "release:windows:all": "node scripts/release/build-windows.mjs all",
+    "release:windows:manifest": "node scripts/release/build-windows.mjs manifest"
   },
   "dependencies": {
     "@fontsource/cormorant-garamond": "^5.2.11",

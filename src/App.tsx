@@ -449,7 +449,7 @@ function App() {
               <div className="pane-footer">
                 <div className="local-note">
                   <Shield size={15} strokeWidth={1.7} aria-hidden="true" />
-                  <span>Local on this Mac</span>
+                  <span>Local on this device</span>
                 </div>
 
                 <div className="action-row">
