@@ -53,9 +53,24 @@ pub struct PrivacyWriteResult {
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn scan_privacy_folder(input_root: String) -> Result<PrivacyFolderScan, String> {
-    tauri::async_runtime::spawn_blocking(move || scan_privacy_folder_blocking(&input_root))
-        .await
-        .map_err(|error| format!("Folder scan failed: {error}"))?
+    log::info!(target: "document_batch", "folder scan command started");
+    let result =
+        tauri::async_runtime::spawn_blocking(move || scan_privacy_folder_blocking(&input_root))
+            .await
+            .map_err(|error| format!("Folder scan failed: {error}"))?;
+
+    match &result {
+        Ok(scan) => log::info!(
+            target: "document_batch",
+            "folder scan command completed; files={} unsupported={} warnings={}",
+            scan.files.len(),
+            scan.unsupported.len(),
+            scan.warnings.len()
+        ),
+        Err(error) => log::error!(target: "document_batch", "folder scan command failed: {error}"),
+    }
+
+    result
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -63,11 +78,31 @@ pub async fn extract_privacy_file(
     input_root: String,
     file_path: String,
 ) -> Result<ExtractedPrivacyFile, String> {
-    tauri::async_runtime::spawn_blocking(move || {
+    let extension = extension(Path::new(&file_path));
+    log::info!(
+        target: "document_batch",
+        "file extraction command started; extension={extension}"
+    );
+    let result = tauri::async_runtime::spawn_blocking(move || {
         extract_privacy_file_blocking(&input_root, &file_path)
     })
     .await
-    .map_err(|error| format!("Extraction failed: {error}"))?
+    .map_err(|error| format!("Extraction failed: {error}"))?;
+
+    match &result {
+        Ok(extracted) => log::info!(
+            target: "document_batch",
+            "file extraction command completed; relative_path={} chars={} warnings={}",
+            extracted.relative_path,
+            extracted.char_count,
+            extracted.warnings.len()
+        ),
+        Err(error) => {
+            log::error!(target: "document_batch", "file extraction command failed: {error}")
+        }
+    }
+
+    result
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -76,11 +111,23 @@ pub async fn write_privacy_output(
     output_relative_path: String,
     redacted_markdown: String,
 ) -> Result<PrivacyWriteResult, String> {
-    tauri::async_runtime::spawn_blocking(move || {
+    log::info!(target: "document_batch", "output write command started");
+    let result = tauri::async_runtime::spawn_blocking(move || {
         write_text_under_root(&output_root, &output_relative_path, &redacted_markdown)
     })
     .await
-    .map_err(|error| format!("Output write failed: {error}"))?
+    .map_err(|error| format!("Output write failed: {error}"))?;
+
+    match &result {
+        Ok(written) => log::info!(
+            target: "document_batch",
+            "output write command completed; bytes={}",
+            written.bytes
+        ),
+        Err(error) => log::error!(target: "document_batch", "output write command failed: {error}"),
+    }
+
+    result
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -88,13 +135,27 @@ pub async fn write_privacy_manifest(
     output_root: String,
     manifest: serde_json::Value,
 ) -> Result<PrivacyWriteResult, String> {
-    tauri::async_runtime::spawn_blocking(move || {
+    log::info!(target: "document_batch", "manifest write command started");
+    let result = tauri::async_runtime::spawn_blocking(move || {
         let content = serde_json::to_string_pretty(&manifest)
             .map_err(|error| format!("Could not encode manifest: {error}"))?;
         write_text_under_root(&output_root, "_privacy-filter-manifest.json", &content)
     })
     .await
-    .map_err(|error| format!("Manifest write failed: {error}"))?
+    .map_err(|error| format!("Manifest write failed: {error}"))?;
+
+    match &result {
+        Ok(written) => log::info!(
+            target: "document_batch",
+            "manifest write command completed; bytes={}",
+            written.bytes
+        ),
+        Err(error) => {
+            log::error!(target: "document_batch", "manifest write command failed: {error}")
+        }
+    }
+
+    result
 }
 
 fn scan_privacy_folder_blocking(input_root: &str) -> Result<PrivacyFolderScan, String> {

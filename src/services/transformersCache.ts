@@ -9,6 +9,11 @@ import {
   writeTextFile,
 } from '@tauri-apps/plugin-fs'
 
+import {
+  fireAndForgetRuntimeLog,
+  serializeError,
+} from './runtimeLogging'
+
 const CACHE_ROOT = 'transformers-cache'
 
 interface CachedResponseMetadata {
@@ -23,11 +28,29 @@ interface MemoryCacheEntry {
 const browserCache = new Map<string, MemoryCacheEntry>()
 
 async function hashKey(key: string) {
+  if (typeof crypto === 'undefined' || !crypto.subtle) {
+    fireAndForgetRuntimeLog('warn', 'Crypto subtle API unavailable for cache hashing', {
+      location: 'transformers-cache',
+    })
+    return fallbackHashKey(key)
+  }
+
   const input = new TextEncoder().encode(key)
   const digest = await crypto.subtle.digest('SHA-256', input)
   return Array.from(new Uint8Array(digest))
     .map((value) => value.toString(16).padStart(2, '0'))
     .join('')
+}
+
+function fallbackHashKey(key: string) {
+  let hash = 0x811c9dc5
+
+  for (let index = 0; index < key.length; index += 1) {
+    hash ^= key.charCodeAt(index)
+    hash = Math.imul(hash, 0x01000193)
+  }
+
+  return `fallback-${(hash >>> 0).toString(16)}`
 }
 
 async function resolveCachePaths(key: string) {
@@ -42,90 +65,156 @@ async function ensureCacheRoot() {
   await mkdir(CACHE_ROOT, { baseDir: BaseDirectory.AppCache, recursive: true })
 }
 
+async function readMetadata(
+  metadataPath: string,
+): Promise<CachedResponseMetadata | null> {
+  if (!(await exists(metadataPath, { baseDir: BaseDirectory.AppCache }))) {
+    return null
+  }
+
+  try {
+    const content = await readFile(metadataPath, {
+      baseDir: BaseDirectory.AppCache,
+    })
+    const metadata = JSON.parse(new TextDecoder().decode(content)) as Partial<
+      CachedResponseMetadata
+    >
+
+    return metadata.headers && typeof metadata.headers === 'object'
+      ? { headers: metadata.headers as Record<string, string> }
+      : null
+  } catch (error) {
+    fireAndForgetRuntimeLog('warn', 'Ignoring corrupt model cache metadata', {
+      location: 'transformers-cache',
+      error: serializeError(error),
+    })
+    return null
+  }
+}
+
 export function createTauriCustomCache() {
   if (!isTauri()) {
     return {
       async match(key: string) {
-        const cached = browserCache.get(key)
+        try {
+          const cached = browserCache.get(key)
 
-        if (!cached) {
+          if (!cached) {
+            return undefined
+          }
+
+          return new Response(cached.body.slice(), {
+            headers: cached.headers,
+          })
+        } catch (error) {
+          fireAndForgetRuntimeLog('warn', 'Browser model cache match failed', {
+            location: 'transformers-cache',
+            error: serializeError(error),
+          })
           return undefined
         }
-
-        return new Response(cached.body.slice(), {
-          headers: cached.headers,
-        })
       },
 
       async put(key: string, response: Response) {
-        const clone = response.clone()
-        browserCache.set(key, {
-          body: new Uint8Array(await clone.arrayBuffer()),
-          headers: Object.fromEntries(clone.headers.entries()),
-        })
+        try {
+          const clone = response.clone()
+          browserCache.set(key, {
+            body: new Uint8Array(await clone.arrayBuffer()),
+            headers: Object.fromEntries(clone.headers.entries()),
+          })
+        } catch (error) {
+          fireAndForgetRuntimeLog('warn', 'Browser model cache put failed', {
+            location: 'transformers-cache',
+            error: serializeError(error),
+          })
+        }
       },
 
       async delete(key: string) {
-        return browserCache.delete(key)
+        try {
+          return browserCache.delete(key)
+        } catch (error) {
+          fireAndForgetRuntimeLog('warn', 'Browser model cache delete failed', {
+            location: 'transformers-cache',
+            error: serializeError(error),
+          })
+          return false
+        }
       },
     }
   }
 
   return {
     async match(key: string) {
-      await ensureCacheRoot()
-      const { dataPath, metadataPath } = await resolveCachePaths(key)
+      try {
+        await ensureCacheRoot()
+        const { dataPath, metadataPath } = await resolveCachePaths(key)
 
-      if (!(await exists(dataPath, { baseDir: BaseDirectory.AppCache }))) {
+        if (!(await exists(dataPath, { baseDir: BaseDirectory.AppCache }))) {
+          return undefined
+        }
+
+        const data = await readFile(dataPath, { baseDir: BaseDirectory.AppCache })
+        const metadata = await readMetadata(metadataPath)
+
+        return new Response(data, {
+          headers: metadata?.headers,
+        })
+      } catch (error) {
+        fireAndForgetRuntimeLog('warn', 'Tauri model cache match failed', {
+          location: 'transformers-cache',
+          error: serializeError(error),
+        })
         return undefined
       }
-
-      const data = await readFile(dataPath, { baseDir: BaseDirectory.AppCache })
-      let metadata: CachedResponseMetadata | null = null
-
-      if (await exists(metadataPath, { baseDir: BaseDirectory.AppCache })) {
-        const content = await readFile(metadataPath, {
-          baseDir: BaseDirectory.AppCache,
-        })
-        metadata = JSON.parse(new TextDecoder().decode(content))
-      }
-
-      return new Response(data, {
-        headers: metadata?.headers,
-      })
     },
 
     async put(key: string, response: Response) {
-      await ensureCacheRoot()
-      const clone = response.clone()
-      const bytes = new Uint8Array(await clone.arrayBuffer())
-      const { dataPath, metadataPath } = await resolveCachePaths(key)
+      try {
+        await ensureCacheRoot()
+        const clone = response.clone()
+        const bytes = new Uint8Array(await clone.arrayBuffer())
+        const { dataPath, metadataPath } = await resolveCachePaths(key)
 
-      await writeFile(dataPath, bytes, { baseDir: BaseDirectory.AppCache })
-      await writeTextFile(
-        metadataPath,
-        JSON.stringify({
-          headers: Object.fromEntries(clone.headers.entries()),
-        } satisfies CachedResponseMetadata),
-        { baseDir: BaseDirectory.AppCache },
-      )
+        await writeFile(dataPath, bytes, { baseDir: BaseDirectory.AppCache })
+        await writeTextFile(
+          metadataPath,
+          JSON.stringify({
+            headers: Object.fromEntries(clone.headers.entries()),
+          } satisfies CachedResponseMetadata),
+          { baseDir: BaseDirectory.AppCache },
+        )
+      } catch (error) {
+        fireAndForgetRuntimeLog('warn', 'Tauri model cache put failed', {
+          location: 'transformers-cache',
+          error: serializeError(error),
+        })
+      }
     },
 
     async delete(key: string) {
-      const { dataPath, metadataPath } = await resolveCachePaths(key)
-      let removed = false
+      try {
+        const { dataPath, metadataPath } = await resolveCachePaths(key)
+        let removed = false
 
-      if (await exists(dataPath, { baseDir: BaseDirectory.AppCache })) {
-        await remove(dataPath, { baseDir: BaseDirectory.AppCache })
-        removed = true
+        if (await exists(dataPath, { baseDir: BaseDirectory.AppCache })) {
+          await remove(dataPath, { baseDir: BaseDirectory.AppCache })
+          removed = true
+        }
+
+        if (await exists(metadataPath, { baseDir: BaseDirectory.AppCache })) {
+          await remove(metadataPath, { baseDir: BaseDirectory.AppCache })
+          removed = true
+        }
+
+        return removed
+      } catch (error) {
+        fireAndForgetRuntimeLog('warn', 'Tauri model cache delete failed', {
+          location: 'transformers-cache',
+          error: serializeError(error),
+        })
+        return false
       }
-
-      if (await exists(metadataPath, { baseDir: BaseDirectory.AppCache })) {
-        await remove(metadataPath, { baseDir: BaseDirectory.AppCache })
-        removed = true
-      }
-
-      return removed
     },
   }
 }

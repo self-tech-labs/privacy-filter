@@ -11,6 +11,7 @@ import {
   MODEL_USAGE_DETAIL,
   MODEL_USAGE_SUMMARY,
   PRODUCT_LICENSE_URL,
+  PRODUCT_MACOS_DOWNLOAD_URL,
   PRODUCT_NAME,
   PRODUCT_PAGES_URL,
   PRODUCT_PRIVACY_DOC_URL,
@@ -18,6 +19,7 @@ import {
   PRODUCT_RELEASES_URL,
   PRODUCT_REPOSITORY_URL,
   PRODUCT_SECURITY_DOC_URL,
+  PRODUCT_WINDOWS_DOWNLOAD_URL,
 } from '../src/content/projectContent'
 import demoPosterUrl from './assets/privacy-filter-demo-poster.jpg'
 import demoVideoUrl from './assets/privacy-filter-demo.mp4'
@@ -41,11 +43,11 @@ export function SiteApp() {
           </p>
 
           <div className="site-cta-row">
-            <a className="site-btn site-btn--primary" href={PRODUCT_REPOSITORY_URL}>
-              View on GitHub
+            <a className="site-btn site-btn--primary" href={PRODUCT_WINDOWS_DOWNLOAD_URL}>
+              Download for Windows
             </a>
-            <a className="site-btn" href={PRODUCT_RELEASES_URL}>
-              View desktop releases
+            <a className="site-btn" href={PRODUCT_MACOS_DOWNLOAD_URL}>
+              Download for macOS
             </a>
             <a className="site-btn" href={PRODUCT_PRIVACY_DOC_URL}>
               Read privacy docs
@@ -54,14 +56,23 @@ export function SiteApp() {
 
           <p className="site-inline-note">{LEGAL_DISCLAIMER_SHORT}</p>
           <p className="site-inline-note">
-            Installable builds appear as `.dmg` assets for macOS and `.exe`
-            setup assets for Windows on tagged releases. GitHub&apos;s `.zip` and
-            `.tar.gz` downloads are source archives, not the desktop app.
+            Direct downloads point to the latest signed release assets:
+            `Privacy-Filter-Windows.exe` for Windows and
+            `Privacy-Filter-macOS.dmg` for macOS. GitHub&apos;s `.zip` and `.tar.gz`
+            downloads are source archives, not the desktop app.
           </p>
           <p className="site-inline-note">
             Main project:{' '}
             <a className="site-inline-link" href={BRAND_SITE_URL}>
               ogram.ch
+            </a>{' '}
+            ·{' '}
+            <a className="site-inline-link" href={PRODUCT_RELEASES_URL}>
+              Release history
+            </a>{' '}
+            ·{' '}
+            <a className="site-inline-link" href={PRODUCT_REPOSITORY_URL}>
+              Source on GitHub
             </a>
           </p>
         </div>

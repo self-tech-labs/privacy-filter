@@ -38,6 +38,28 @@ Run the full validation suite before cutting a release:
 npm run check
 ```
 
+## Windows runtime diagnostics
+
+- The desktop app writes a production runtime log on Windows at Tauri's app log
+  directory:
+
+```text
+%LOCALAPPDATA%\ch.ogram.private\logs\ogram-private-runtime.log
+```
+
+- The same path is displayed in the app footer when the desktop runtime is
+  available.
+- The log includes app startup, frontend runtime errors, model backend
+  selection, cache failures treated as cache misses, folder scan/extract/write
+  boundaries, and manifest writes. It does not log source text.
+- The Windows model backend order prefers WASM compatibility first for this
+  release, then falls back to WebGPU if compatibility loading fails.
+- At startup and before execution, the frontend records a performance preflight
+  using visible CPU threads, device memory when exposed by WebView2, JavaScript
+  heap limit, a small CPU probe, WebGPU availability, platform, and online
+  status. Low signals produce an in-app performance alert but do not block
+  redaction.
+
 ## Desktop artifacts
 
 - `npm run release:mac:app`

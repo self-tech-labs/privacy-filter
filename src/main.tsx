@@ -8,10 +8,29 @@ import '@fontsource/inter/600.css'
 import '@fontsource/jetbrains-mono/400.css'
 import '@fontsource/jetbrains-mono/500.css'
 import './index.css'
+import { RuntimeErrorBoundary } from './components/RuntimeErrorBoundary.tsx'
+import {
+  fireAndForgetRuntimeLog,
+  installGlobalRuntimeLogging,
+} from './services/runtimeLogging.ts'
 import App from './App.tsx'
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+installGlobalRuntimeLogging()
+
+const rootElement = document.getElementById('root')
+
+if (!rootElement) {
+  fireAndForgetRuntimeLog('error', 'React root element was not found', {
+    location: 'bootstrap',
+  })
+  document.body.textContent =
+    'Privacy Filter could not start because the root element is missing.'
+} else {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <RuntimeErrorBoundary>
+        <App />
+      </RuntimeErrorBoundary>
+    </StrictMode>,
+  )
+}

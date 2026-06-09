@@ -8,6 +8,10 @@ export const PRODUCT_REPOSITORY_URL =
 export const PRODUCT_PAGES_URL =
   'https://self-tech-labs.github.io/privacy-filter/'
 export const PRODUCT_RELEASES_URL = `${PRODUCT_REPOSITORY_URL}/releases`
+export const PRODUCT_MACOS_DOWNLOAD_URL =
+  `${PRODUCT_REPOSITORY_URL}/releases/latest/download/Privacy-Filter-macOS.dmg`
+export const PRODUCT_WINDOWS_DOWNLOAD_URL =
+  `${PRODUCT_REPOSITORY_URL}/releases/latest/download/Privacy-Filter-Windows.exe`
 export const PRODUCT_PRIVACY_DOC_URL =
   `${PRODUCT_REPOSITORY_URL}/blob/main/docs/PRIVACY.md`
 export const PRODUCT_SECURITY_DOC_URL =

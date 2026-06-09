@@ -7,6 +7,10 @@ import type {
   PrivacyRunResult,
   RuntimeBackend,
 } from '../types/privacy'
+import {
+  fireAndForgetRuntimeLog,
+  serializeError,
+} from './runtimeLogging'
 import { createTauriCustomCache } from './transformersCache'
 
 const MODEL_ID = 'openai/privacy-filter'
@@ -15,6 +19,8 @@ const CACHE_HINT_KEY = 'ogram-private-model-ready'
 const FALLBACK_BACKEND: RuntimeBackend = 'wasm'
 const MAX_CLASSIFIER_CHARS = 3200
 const MIN_TRAILING_CHARS = 600
+const CLASSIFIER_LOAD_TIMEOUT_MS = 180_000
+const CLASSIFIER_CHUNK_TIMEOUT_MS = 120_000
 const BACKEND_DTYPE: Record<RuntimeBackend, 'q4' | 'q8'> = {
   webgpu: 'q4',
   wasm: 'q8',
@@ -50,7 +56,11 @@ let environmentConfigured = false
 function getCacheHint() {
   try {
     return window.localStorage.getItem(CACHE_HINT_KEY) === 'true'
-  } catch {
+  } catch (error) {
+    fireAndForgetRuntimeLog('warn', 'Could not read model cache hint', {
+      location: 'model-cache-hint',
+      error: serializeError(error),
+    })
     return false
   }
 }
@@ -58,8 +68,11 @@ function getCacheHint() {
 function setCacheHint(value: boolean) {
   try {
     window.localStorage.setItem(CACHE_HINT_KEY, value ? 'true' : 'false')
-  } catch {
-    // Ignore storage failures.
+  } catch (error) {
+    fireAndForgetRuntimeLog('warn', 'Could not write model cache hint', {
+      location: 'model-cache-hint',
+      error: serializeError(error),
+    })
   }
 }
 
@@ -85,19 +98,31 @@ async function configureEnvironment() {
     return
   }
 
-  env.allowLocalModels = false
-  env.allowRemoteModels = true
-  env.useBrowserCache = false
-  env.useFSCache = false
-  env.useCustomCache = true
-  env.customCache = createTauriCustomCache()
-  if (env.backends.onnx.wasm) {
-    env.backends.onnx.wasm.wasmPaths = import.meta.env.DEV
-      ? '/node_modules/onnxruntime-web/dist/'
-      : '/ort/'
-  }
+  try {
+    env.allowLocalModels = false
+    env.allowRemoteModels = true
+    env.useBrowserCache = false
+    env.useFSCache = false
+    env.useCustomCache = true
+    env.customCache = createTauriCustomCache()
+    if (env.backends.onnx.wasm) {
+      env.backends.onnx.wasm.wasmPaths = import.meta.env.DEV
+        ? '/node_modules/onnxruntime-web/dist/'
+        : '/ort/'
+    }
 
-  environmentConfigured = true
+    environmentConfigured = true
+    fireAndForgetRuntimeLog('info', 'Transformers environment configured', {
+      location: 'model-environment',
+      wasmPaths: env.backends.onnx.wasm?.wasmPaths ?? 'unavailable',
+    })
+  } catch (error) {
+    fireAndForgetRuntimeLog('error', 'Transformers environment configuration failed', {
+      location: 'model-environment',
+      error: serializeError(error),
+    })
+    throw error
+  }
 }
 
 function loadingDetail(event: Record<string, unknown>) {
@@ -130,22 +155,31 @@ async function createClassifier(
     progress: null,
   })
 
-  const localFilesOnly =
-    getCacheHint() && typeof navigator !== 'undefined' && navigator.onLine === false
+  const localFilesOnly = shouldUseLocalFilesOnly()
 
-  const classifier = await pipeline(PIPELINE_TASK, MODEL_ID, {
-    device: backend,
-    dtype: BACKEND_DTYPE[backend],
-    local_files_only: localFilesOnly,
-    progress_callback(event) {
-      emitStatus(statusListener, {
-        phase: 'loading',
-        backend,
-        detail: loadingDetail(event as Record<string, unknown>),
-        progress: null,
-      })
-    },
+  fireAndForgetRuntimeLog('info', 'Model classifier load started', {
+    location: 'model-load',
+    backend,
+    localFilesOnly,
   })
+
+  const classifier = await withTimeout(
+    pipeline(PIPELINE_TASK, MODEL_ID, {
+      device: backend,
+      dtype: BACKEND_DTYPE[backend],
+      local_files_only: localFilesOnly,
+      progress_callback(event) {
+        emitStatus(statusListener, {
+          phase: 'loading',
+          backend,
+          detail: loadingDetail(event as Record<string, unknown>),
+          progress: null,
+        })
+      },
+    }),
+    CLASSIFIER_LOAD_TIMEOUT_MS,
+    `Model load timed out for ${backend}`,
+  )
 
   setCacheHint(true)
   emitStatus(statusListener, {
@@ -154,6 +188,11 @@ async function createClassifier(
     backend,
     progress: null,
     cacheHint: true,
+  })
+
+  fireAndForgetRuntimeLog('info', 'Model classifier load completed', {
+    location: 'model-load',
+    backend,
   })
 
   return {
@@ -167,27 +206,132 @@ async function getClassifier(statusListener?: StatusListener) {
 
   if (!classifierPromise) {
     classifierPromise = (async () => {
-      try {
-        return await createClassifier('webgpu', statusListener)
-      } catch (webgpuError) {
-        emitStatus(statusListener, {
-          phase: 'loading',
-          detail: 'Switching to compatibility engine',
-          backend: FALLBACK_BACKEND,
-          progress: null,
-        })
+      const backendOrder = getBackendOrder()
+      let lastError: unknown = null
 
+      for (const [index, backend] of backendOrder.entries()) {
         try {
-          return await createClassifier(FALLBACK_BACKEND, statusListener)
-        } catch (fallbackError) {
-          classifierPromise = null
-          throw fallbackError instanceof Error ? fallbackError : webgpuError
+          return await createClassifier(backend, statusListener)
+        } catch (error) {
+          lastError = error
+          fireAndForgetRuntimeLog('warn', 'Model classifier backend failed', {
+            location: 'model-load',
+            backend,
+            error: serializeError(error),
+          })
+
+          const nextBackend = backendOrder[index + 1]
+          if (nextBackend) {
+            emitStatus(statusListener, {
+              phase: 'loading',
+              detail: 'Switching to compatibility engine',
+              backend: nextBackend,
+              progress: null,
+            })
+          }
         }
       }
+
+      classifierPromise = null
+      throw lastError instanceof Error
+        ? lastError
+        : new Error('Local engine could not be initialized.')
     })()
   }
 
   return classifierPromise
+}
+
+function getBackendOrder(): RuntimeBackend[] {
+  if (isWindowsRuntime()) {
+    return [FALLBACK_BACKEND, 'webgpu']
+  }
+
+  return ['webgpu', FALLBACK_BACKEND]
+}
+
+function shouldUseLocalFilesOnly(): boolean {
+  try {
+    return (
+      getCacheHint() &&
+      typeof navigator !== 'undefined' &&
+      navigator.onLine === false
+    )
+  } catch {
+    return false
+  }
+}
+
+function isWindowsRuntime(): boolean {
+  if (typeof navigator === 'undefined') {
+    return false
+  }
+
+  const nav = navigator as Navigator & {
+    userAgentData?: {
+      platform?: string
+    }
+  }
+  const platform = nav.userAgentData?.platform || nav.platform || ''
+  return /win/i.test(platform) || /windows/i.test(nav.userAgent)
+}
+
+function normalizeGroupedSpans(output: unknown): GroupedSpan[] {
+  if (!Array.isArray(output)) {
+    fireAndForgetRuntimeLog('warn', 'Model classifier returned non-array output', {
+      location: 'model-inference',
+      outputType: typeof output,
+    })
+    return []
+  }
+
+  return output.flatMap((item) => {
+    if (!isGroupedSpan(item)) {
+      fireAndForgetRuntimeLog('warn', 'Model classifier returned invalid span', {
+        location: 'model-inference',
+      })
+      return []
+    }
+
+    return [
+      {
+        ...item,
+        score: typeof item.score === 'number' ? item.score : 0,
+      },
+    ]
+  })
+}
+
+function isGroupedSpan(value: unknown): value is GroupedSpan {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const span = value as Partial<GroupedSpan>
+  const hasLabel =
+    typeof span.entity_group === 'string' || typeof span.entity === 'string'
+  const hasOffsets =
+    (span.start === undefined || typeof span.start === 'number') &&
+    (span.end === undefined || typeof span.end === 'number')
+
+  return typeof span.word === 'string' && hasLabel && hasOffsets
+}
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  message: string,
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(message))
+    }, timeoutMs)
+
+    promise
+      .then(resolve)
+      .catch(reject)
+      .finally(() => clearTimeout(timeoutId))
+  })
 }
 
 function splitForClassifier(sourceText: string): TextChunk[] {
@@ -246,12 +390,17 @@ async function classifyText(
       cacheHint: true,
     })
 
-    const chunkOutput = await classifier(chunk.text, {
-      aggregation_strategy: 'simple',
-    })
+    const chunkOutput = await withTimeout(
+      classifier(chunk.text, {
+        aggregation_strategy: 'simple',
+      }),
+      CLASSIFIER_CHUNK_TIMEOUT_MS,
+      `Model inference timed out on chunk ${index + 1}/${chunks.length}`,
+    )
+    const normalizedChunkOutput = normalizeGroupedSpans(chunkOutput)
 
     spans.push(
-      ...chunkOutput.map((span) => ({
+      ...normalizedChunkOutput.map((span) => ({
         ...span,
         start:
           typeof span.start === 'number' ? chunk.start + span.start : span.start,

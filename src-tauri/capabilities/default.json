@@ -10,6 +10,7 @@
     "core:window:allow-set-progress-bar",
     "dialog:default",
     "fs:default",
+    "log:default",
     {
       "identifier": "fs:scope",
       "allow": [
