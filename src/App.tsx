@@ -46,7 +46,11 @@ import {
   writePrivacyManifest,
   writePrivacyOutput,
 } from './services/batchService'
-import { getInitialModelStatus, redactText } from './services/modelService'
+import {
+  getInitialModelStatus,
+  redactText,
+  type ModelRuntimeOptions,
+} from './services/modelService'
 import type {
   ModelStatus,
   PrivacyFolderFile,
@@ -370,6 +374,9 @@ const copy: Record<AppLanguage, AppCopy> = {
     modelDetails: {
       Idle: 'Idle',
       'Preparing local engine': 'Preparing local engine',
+      'Preparing GPU engine': 'Preparing GPU engine',
+      'Preparing compatibility engine': 'Preparing compatibility engine',
+      'Repairing local model cache': 'Repairing local model cache',
       'Finalizing local engine': 'Finalizing local engine',
       'Local engine ready': 'Local engine ready',
       'Runs locally after the first model download':
@@ -541,6 +548,9 @@ const copy: Record<AppLanguage, AppCopy> = {
     modelDetails: {
       Idle: 'Inactif',
       'Preparing local engine': 'Préparation du moteur local',
+      'Preparing GPU engine': 'Préparation du moteur GPU',
+      'Preparing compatibility engine': 'Préparation du moteur de compatibilité',
+      'Repairing local model cache': 'Réparation du cache local du modèle',
       'Finalizing local engine': 'Finalisation du moteur local',
       'Local engine ready': 'Moteur local prêt',
       'Runs locally after the first model download':
@@ -691,6 +701,24 @@ function App() {
     return report
   }
 
+  function modelRuntimeOptionsFromReport(
+    report: DevicePerformanceReport,
+  ): ModelRuntimeOptions {
+    const weakWindowsSignals =
+      report.signals.isWindows &&
+      (report.status === 'warning' ||
+        report.signals.webGpu !== 'available' ||
+        (report.signals.cpuThreads !== null && report.signals.cpuThreads < 4))
+
+    return weakWindowsSignals
+      ? {
+          compatibilityOnly: true,
+          compatibilityReason:
+            'Windows compatibility mode was selected from the performance preflight.',
+        }
+      : {}
+  }
+
   async function handleCopy() {
     if (!result) {
       return
@@ -721,12 +749,17 @@ function App() {
     setNotice(null)
 
     try {
-      await runPerformancePreflight('text-redaction')
+      const preflight = await runPerformancePreflight('text-redaction')
       fireAndForgetRuntimeLog('info', 'Text redaction started', {
         location: 'text-redaction',
         characters: cleaned.length,
       })
-      const nextResult = await redactText(cleaned, 'typed', setModelStatus)
+      const nextResult = await redactText(
+        cleaned,
+        'typed',
+        setModelStatus,
+        modelRuntimeOptionsFromReport(preflight),
+      )
       startTransition(() => {
         setResult(nextResult)
       })
@@ -855,7 +888,8 @@ function App() {
     setNotice(null)
     setManifestPath(null)
 
-    await runPerformancePreflight('folder-redaction')
+    const preflight = await runPerformancePreflight('folder-redaction')
+    const modelRuntimeOptions = modelRuntimeOptionsFromReport(preflight)
     fireAndForgetRuntimeLog('info', 'Folder run started', {
       location: 'folder-run',
       files: folderScan.files.length,
@@ -885,6 +919,7 @@ function App() {
           extracted.markdown,
           'typed',
           setModelStatus,
+          modelRuntimeOptions,
         )
 
         updateBatchItem(file.relativePath, {

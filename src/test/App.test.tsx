@@ -98,10 +98,12 @@ function createPerformanceReport(
   return {
     status,
     summary: warning
-      ? 'Only 2 CPU threads are visible; local redaction can feel slow.'
+      ? 'Only 2 GB of device memory is visible; close other apps before processing large files.'
       : 'Device performance looks ready for local redaction.',
     reasons: warning
-      ? ['Only 2 CPU threads are visible; local redaction can feel slow.']
+      ? [
+          'Only 2 GB of device memory is visible; close other apps before processing large files.',
+        ]
       : [],
     recommendations: warning ? ['Process shorter text first.'] : [],
     signals: {
@@ -206,6 +208,7 @@ describe('App', () => {
       'Alice Example alice@example.com',
       'typed',
       expect.any(Function),
+      {},
     )
     expect(writeTextMock).not.toHaveBeenCalled()
   })
@@ -238,7 +241,7 @@ describe('App', () => {
     render(<App />)
 
     expect(await screen.findByText(/performance alert/i)).toHaveTextContent(
-      /only 2 cpu threads/i,
+      /only 2 gb of device memory/i,
     )
 
     enterSourceText('Alice Example')
@@ -388,6 +391,7 @@ describe('App', () => {
       'Alice Example',
       'typed',
       expect.any(Function),
+      {},
     )
     expect(writePrivacyOutputMock).toHaveBeenCalledWith(
       '/Users/test/input-private-text',

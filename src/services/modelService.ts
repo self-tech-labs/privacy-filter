@@ -11,7 +11,10 @@ import {
   fireAndForgetRuntimeLog,
   serializeError,
 } from './runtimeLogging'
-import { createTauriCustomCache } from './transformersCache'
+import {
+  clearTransformersCache,
+  createTauriCustomCache,
+} from './transformersCache'
 
 const MODEL_ID = 'openai/privacy-filter'
 const PIPELINE_TASK = 'token-classification'
@@ -19,7 +22,8 @@ const CACHE_HINT_KEY = 'ogram-private-model-ready'
 const FALLBACK_BACKEND: RuntimeBackend = 'wasm'
 const MAX_CLASSIFIER_CHARS = 3200
 const MIN_TRAILING_CHARS = 600
-const CLASSIFIER_LOAD_TIMEOUT_MS = 180_000
+const WASM_CLASSIFIER_LOAD_TIMEOUT_MS = 300_000
+const WEBGPU_CLASSIFIER_LOAD_TIMEOUT_MS = 60_000
 const CLASSIFIER_CHUNK_TIMEOUT_MS = 120_000
 const BACKEND_DTYPE: Record<RuntimeBackend, 'q4' | 'q8'> = {
   webgpu: 'q4',
@@ -27,6 +31,24 @@ const BACKEND_DTYPE: Record<RuntimeBackend, 'q4' | 'q8'> = {
 }
 
 type StatusListener = (status: ModelStatus) => void
+
+export interface ModelRuntimeOptions {
+  compatibilityOnly?: boolean
+  compatibilityReason?: string
+}
+
+interface BackendLoadAttempt {
+  backend: RuntimeBackend
+  timeoutMs: number
+  resetCacheBeforeLoad?: boolean
+  detail: string
+}
+
+interface BackendFailure {
+  backend: RuntimeBackend
+  reason: string
+  timedOut: boolean
+}
 
 interface GroupedSpan {
   word: string
@@ -51,6 +73,7 @@ interface TextChunk {
 }
 
 let classifierPromise: Promise<ClassifierState> | null = null
+let classifierPromiseMode: 'auto' | 'compatibility-only' | null = null
 let environmentConfigured = false
 
 function getCacheHint() {
@@ -145,12 +168,25 @@ function loadingDetail(event: Record<string, unknown>) {
 }
 
 async function createClassifier(
-  backend: RuntimeBackend,
+  attempt: BackendLoadAttempt,
   statusListener?: StatusListener,
 ): Promise<ClassifierState> {
+  const { backend } = attempt
+
+  if (attempt.resetCacheBeforeLoad) {
+    emitStatus(statusListener, {
+      phase: 'loading',
+      detail: 'Repairing local model cache',
+      backend,
+      progress: null,
+    })
+    setCacheHint(false)
+    await clearTransformersCache()
+  }
+
   emitStatus(statusListener, {
     phase: 'loading',
-    detail: 'Preparing local engine',
+    detail: attempt.detail,
     backend,
     progress: null,
   })
@@ -161,6 +197,8 @@ async function createClassifier(
     location: 'model-load',
     backend,
     localFilesOnly,
+    timeoutMs: attempt.timeoutMs,
+    cacheReset: attempt.resetCacheBeforeLoad === true,
   })
 
   const classifier = await withTimeout(
@@ -177,7 +215,7 @@ async function createClassifier(
         })
       },
     }),
-    CLASSIFIER_LOAD_TIMEOUT_MS,
+    attempt.timeoutMs,
     `Model load timed out for ${backend}`,
   )
 
@@ -201,53 +239,165 @@ async function createClassifier(
   }
 }
 
-async function getClassifier(statusListener?: StatusListener) {
+async function getClassifierWithOptions(
+  statusListener: StatusListener | undefined,
+  options: ModelRuntimeOptions = {},
+) {
   await configureEnvironment()
 
-  if (!classifierPromise) {
-    classifierPromise = (async () => {
-      const backendOrder = getBackendOrder()
-      let lastError: unknown = null
+  const mode = shouldUseCompatibilityOnly(options)
+    ? 'compatibility-only'
+    : 'auto'
 
-      for (const [index, backend] of backendOrder.entries()) {
+  if (classifierPromise && classifierPromiseMode !== mode) {
+    fireAndForgetRuntimeLog('warn', 'Discarding model load for new runtime mode', {
+      location: 'model-load',
+      previousMode: classifierPromiseMode,
+      nextMode: mode,
+    })
+    classifierPromise = null
+    classifierPromiseMode = null
+  }
+
+  if (!classifierPromise) {
+    classifierPromiseMode = mode
+    classifierPromise = (async () => {
+      const attempts = getBackendLoadAttempts(options)
+      const failures: BackendFailure[] = []
+
+      fireAndForgetRuntimeLog('info', 'Model backend attempts prepared', {
+        location: 'model-load',
+        mode,
+        compatibilityReason: options.compatibilityReason,
+        attempts: attempts
+          .map((attempt) =>
+            `${attempt.backend}${attempt.resetCacheBeforeLoad ? ':cache-reset' : ''}`,
+          )
+          .join(','),
+      })
+
+      for (const [index, attempt] of attempts.entries()) {
         try {
-          return await createClassifier(backend, statusListener)
+          return await createClassifier(attempt, statusListener)
         } catch (error) {
-          lastError = error
+          const timedOut = isTimeoutError(error)
+          failures.push({
+            backend: attempt.backend,
+            reason: error instanceof Error ? error.message : serializeError(error),
+            timedOut,
+          })
           fireAndForgetRuntimeLog('warn', 'Model classifier backend failed', {
             location: 'model-load',
-            backend,
+            backend: attempt.backend,
+            cacheReset: attempt.resetCacheBeforeLoad === true,
+            timedOut,
             error: serializeError(error),
           })
 
-          const nextBackend = backendOrder[index + 1]
-          if (nextBackend) {
+          const nextAttempt = nextUsableAttempt(attempts, index, timedOut)
+          if (nextAttempt) {
             emitStatus(statusListener, {
               phase: 'loading',
-              detail: 'Switching to compatibility engine',
-              backend: nextBackend,
+              detail: nextAttempt.detail,
+              backend: nextAttempt.backend,
               progress: null,
             })
+          } else {
+            break
           }
         }
       }
 
       classifierPromise = null
-      throw lastError instanceof Error
-        ? lastError
-        : new Error('Local engine could not be initialized.')
+      classifierPromiseMode = null
+      throw createModelLoadError(failures, options)
     })()
   }
 
   return classifierPromise
 }
 
-function getBackendOrder(): RuntimeBackend[] {
-  if (isWindowsRuntime()) {
-    return [FALLBACK_BACKEND, 'webgpu']
+function shouldUseCompatibilityOnly(options: ModelRuntimeOptions): boolean {
+  return options.compatibilityOnly === true || isWindowsRuntime()
+}
+
+function getBackendLoadAttempts(
+  options: ModelRuntimeOptions,
+): BackendLoadAttempt[] {
+  if (shouldUseCompatibilityOnly(options)) {
+    return [
+      {
+        backend: FALLBACK_BACKEND,
+        timeoutMs: WASM_CLASSIFIER_LOAD_TIMEOUT_MS,
+        detail: 'Preparing compatibility engine',
+      },
+      {
+        backend: FALLBACK_BACKEND,
+        timeoutMs: WASM_CLASSIFIER_LOAD_TIMEOUT_MS,
+        resetCacheBeforeLoad: true,
+        detail: 'Repairing local model cache',
+      },
+    ]
   }
 
-  return ['webgpu', FALLBACK_BACKEND]
+  return [
+    {
+      backend: 'webgpu',
+      timeoutMs: WEBGPU_CLASSIFIER_LOAD_TIMEOUT_MS,
+      detail: 'Preparing GPU engine',
+    },
+    {
+      backend: FALLBACK_BACKEND,
+      timeoutMs: WASM_CLASSIFIER_LOAD_TIMEOUT_MS,
+      detail: 'Switching to compatibility engine',
+    },
+    {
+      backend: FALLBACK_BACKEND,
+      timeoutMs: WASM_CLASSIFIER_LOAD_TIMEOUT_MS,
+      resetCacheBeforeLoad: true,
+      detail: 'Repairing local model cache',
+    },
+  ]
+}
+
+function nextUsableAttempt(
+  attempts: BackendLoadAttempt[],
+  failedIndex: number,
+  failedByTimeout: boolean,
+): BackendLoadAttempt | null {
+  for (const attempt of attempts.slice(failedIndex + 1)) {
+    if (failedByTimeout && attempt.resetCacheBeforeLoad) {
+      continue
+    }
+
+    return attempt
+  }
+
+  return null
+}
+
+function createModelLoadError(
+  failures: BackendFailure[],
+  options: ModelRuntimeOptions,
+): Error {
+  const attempted = failures
+    .map((failure) =>
+      `${failure.backend.toUpperCase()}${failure.timedOut ? ' timed out' : ` failed: ${failure.reason}`}`,
+    )
+    .join(' | ')
+
+  const reason = options.compatibilityReason
+    ? ` ${options.compatibilityReason}`
+    : ''
+  const message = isWindowsRuntime()
+    ? `Compatibility engine could not initialize on Windows.${reason} Restart the app and try a shorter text or folder. Details: ${attempted}`
+    : `Local engine could not initialize. Restart the app and try again. Details: ${attempted}`
+
+  return new Error(message)
+}
+
+function isTimeoutError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'ModelLoadTimeoutError'
 }
 
 function shouldUseLocalFilesOnly(): boolean {
@@ -324,7 +474,9 @@ function withTimeout<T>(
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     const timeoutId = setTimeout(() => {
-      reject(new Error(message))
+      const error = new Error(message)
+      error.name = 'ModelLoadTimeoutError'
+      reject(error)
     }, timeoutMs)
 
     promise
@@ -436,8 +588,12 @@ export async function redactText(
   sourceText: string,
   outputMode: OutputMode,
   statusListener?: StatusListener,
+  options: ModelRuntimeOptions = {},
 ): Promise<PrivacyRunResult> {
-  const { classifier, backend } = await getClassifier(statusListener)
+  const { classifier, backend } = await getClassifierWithOptions(
+    statusListener,
+    options,
+  )
   emitStatus(statusListener, {
     phase: 'loading',
     detail: 'Making text private',

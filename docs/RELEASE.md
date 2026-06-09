@@ -52,13 +52,19 @@ npm run check
 - The log includes app startup, frontend runtime errors, model backend
   selection, cache failures treated as cache misses, folder scan/extract/write
   boundaries, and manifest writes. It does not log source text.
-- The Windows model backend order prefers WASM compatibility first for this
-  release, then falls back to WebGPU if compatibility loading fails.
+- The Windows model backend uses WASM compatibility mode only. It does not fall
+  through to WebGPU after a compatibility failure because affected Windows
+  WebView2/GPU combinations can hang or time out there.
+- If WASM fails quickly, the app clears the local model cache and retries WASM
+  once. It does not start a second retry after a load timeout because the
+  original load may still be running inside the model runtime.
 - At startup and before execution, the frontend records a performance preflight
   using visible CPU threads, device memory when exposed by WebView2, JavaScript
   heap limit, a small CPU probe, WebGPU availability, platform, and online
-  status. Low signals produce an in-app performance alert but do not block
-  redaction.
+  status. Very low memory, heap, CPU probe, or fewer than two visible CPU
+  threads produce an in-app performance alert but do not block redaction. Two
+  or three visible CPU threads are treated as an advisory because Windows
+  WebView2 can under-report that signal.
 
 ## Desktop artifacts
 

@@ -1,7 +1,7 @@
 {
   "name": "ogram-private",
   "private": true,
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Privacy Filter by ogram is a local-first desktop redaction tool for Swiss privacy-sensitive professionals.",
   "license": "MIT",
   "homepage": "https://self-tech-labs.github.io/privacy-filter/",

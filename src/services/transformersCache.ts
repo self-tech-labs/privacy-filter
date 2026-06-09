@@ -27,6 +27,35 @@ interface MemoryCacheEntry {
 
 const browserCache = new Map<string, MemoryCacheEntry>()
 
+export async function clearTransformersCache(): Promise<boolean> {
+  if (!isTauri()) {
+    const hadEntries = browserCache.size > 0
+    browserCache.clear()
+    return hadEntries
+  }
+
+  try {
+    if (!(await exists(CACHE_ROOT, { baseDir: BaseDirectory.AppCache }))) {
+      return false
+    }
+
+    await remove(CACHE_ROOT, {
+      baseDir: BaseDirectory.AppCache,
+      recursive: true,
+    })
+    fireAndForgetRuntimeLog('warn', 'Model cache cleared for retry', {
+      location: 'transformers-cache',
+    })
+    return true
+  } catch (error) {
+    fireAndForgetRuntimeLog('warn', 'Could not clear model cache for retry', {
+      location: 'transformers-cache',
+      error: serializeError(error),
+    })
+    return false
+  }
+}
+
 async function hashKey(key: string) {
   if (typeof crypto === 'undefined' || !crypto.subtle) {
     fireAndForgetRuntimeLog('warn', 'Crypto subtle API unavailable for cache hashing', {

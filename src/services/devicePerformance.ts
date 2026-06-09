@@ -143,7 +143,7 @@ async function collectSignals(): Promise<DevicePerformanceSignals> {
 function performanceReasons(signals: DevicePerformanceSignals): string[] {
   const reasons: string[] = []
 
-  if (signals.cpuThreads !== null && signals.cpuThreads < 4) {
+  if (signals.cpuThreads !== null && signals.cpuThreads < 2) {
     reasons.push(
       `Only ${signals.cpuThreads} CPU threads are visible; local redaction can feel slow.`,
     )
@@ -177,6 +177,16 @@ function performanceRecommendations(
 
   if (signals.deviceMemoryGb !== null && signals.deviceMemoryGb < 8) {
     recommendations.push('Process shorter text or smaller folders first.')
+  }
+
+  if (
+    signals.cpuThreads !== null &&
+    signals.cpuThreads >= 2 &&
+    signals.cpuThreads < 4
+  ) {
+    recommendations.push(
+      `Only ${signals.cpuThreads} CPU threads are visible; the app will prefer compatibility mode.`,
+    )
   }
 
   if (signals.webGpu !== 'available') {
